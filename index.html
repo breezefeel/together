@@ -7,97 +7,115 @@
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         :root {
-            --primary-color: #89CFF0; /* 로고의 하늘색 (파스텔톤) */
+            --primary-color: #89CFF0; /* 로고 하늘색 */
             --primary-dark: #5FA8D3;
-            --accent-color: #FF9F43; /* 로고 부리의 오렌지색 */
+            --accent-color: #FF9F43; /* 포인트 오렌지 */
             --text-color: #333;
             --bg-color: #F9FCFF;
         }
         
         * { box-sizing: border-box; }
         body { 
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            font-family: 'Pretendard', -apple-system, sans-serif;
             margin: 0; padding: 0; 
             color: var(--text-color); 
             line-height: 1.6;
+            word-break: keep-all; /* 한글 줄바꿈 최적화 */
         }
         
-        /* 상단 헤더 */
+        /* 1. 헤더 */
         header { 
             display: flex; justify-content: space-between; align-items: center; 
-            padding: 15px 5%; 
-            background: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            padding: 15px 5%; background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             position: sticky; top: 0; z-index: 1000;
         }
-        .logo-container { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.2rem; color: var(--primary-dark); }
-        .logo-img { height: 50px; } 
+        .logo-container { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1.2rem; color: var(--primary-dark); }
+        .logo-img { height: 55px; border-radius: 50%; } 
         
-        nav { display: flex; gap: 20px; align-items: center; }
-        nav a { text-decoration: none; color: #555; font-weight: 500; transition: 0.3s; }
+        nav { display: flex; gap: 25px; align-items: center; }
+        nav a { text-decoration: none; color: #555; font-weight: 500; font-size: 1rem; transition: 0.3s; }
         nav a:hover { color: var(--primary-dark); }
         .btn-donate { 
-            background-color: var(--accent-color); 
-            color: white !important; 
-            padding: 10px 20px; 
-            border-radius: 30px; 
-            font-weight: bold;
+            background-color: var(--accent-color); color: white !important; 
+            padding: 10px 24px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(255, 159, 67, 0.2);
         }
-        .btn-donate:hover { background-color: #e68a30; }
+        .btn-donate:hover { background-color: #e68a30; transform: translateY(-2px); }
 
-        /* 메인 배너 */
+        /* 2. 메인 배너 (Hero) */
         .hero { 
-            background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.8)), url('https://images.unsplash.com/photo-1497436072909-60f360e1d4b0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
-            background-size: cover;
-            background-position: center;
-            text-align: center; 
-            padding: 100px 20px; 
+            /* 배경: 아이들과 자연이 어우러진 따뜻한 이미지 */
+            background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover; background-position: center;
+            text-align: center; padding: 140px 20px; color: white;
         }
-        .hero h1 { font-size: 2.5em; color: var(--primary-dark); margin-bottom: 15px; word-break: keep-all;}
-        .hero p { font-size: 1.2em; color: #555; margin-bottom: 30px; word-break: keep-all;}
+        .hero h1 { font-size: 2.8em; margin-bottom: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .hero p { font-size: 1.3em; margin-bottom: 40px; opacity: 0.95; font-weight: 300; }
         
         /* 섹션 공통 */
-        section { padding: 60px 5%; }
-        h2 { text-align: center; margin-bottom: 40px; color: var(--text-color); font-size: 1.8rem; }
+        section { padding: 80px 5%; max-width: 1200px; margin: 0 auto; }
+        h2 { text-align: center; margin-bottom: 50px; color: #222; font-size: 2rem; letter-spacing: -1px; }
 
-        /* 주요 활동 카드 */
-        .activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+        /* 3. 주요 활동 (이미지 카드형) */
+        .activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
         .card { 
-            background: white; padding: 30px; 
-            border-radius: 15px; 
-            border: 1px solid #eee; 
-            text-align: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            transition: transform 0.3s;
+            background: white; border-radius: 16px; overflow: hidden;
+            border: 1px solid #eee; box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
         }
-        .card:hover { transform: translateY(-5px); }
-        .card h3 { color: var(--primary-dark); margin-top: 0; }
-        .icon { font-size: 2.5rem; margin-bottom: 15px; display: block; }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
+        .card-img { width: 100%; height: 200px; object-fit: cover; }
+        .card-content { padding: 30px; text-align: left; }
+        .card h3 { color: var(--primary-dark); margin-top: 0; font-size: 1.4rem; }
+        .card p { color: #666; font-size: 1rem; margin-bottom: 0; }
 
-        /* 후원 섹션 */
-        .donation-section { background-color: var(--bg-color); text-align: center; }
-        .donation-box { 
-            max-width: 600px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 40px; 
-            border-radius: 20px; 
-            border: 2px solid var(--primary-color); 
+        /* 4. 활동 연혁 (Timeline) */
+        .timeline-section { background-color: #F9FCFF; width: 100%; max-width: 100%; }
+        .timeline-container { max-width: 800px; margin: 0 auto; }
+        .timeline-item { 
+            border-left: 2px solid var(--primary-color); 
+            padding-left: 30px; margin-bottom: 40px; position: relative; 
         }
-        .account-number { font-size: 1.4em; font-weight: bold; color: var(--primary-dark); background: #f0f8ff; padding: 15px; border-radius: 10px; margin: 20px 0; word-break: break-all;}
-        .donate-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .tab { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; }
-        .tab.active { background: var(--primary-dark); color: white; border-color: var(--primary-dark); }
+        .timeline-item::before { 
+            content: ''; position: absolute; left: -9px; top: 0; 
+            width: 16px; height: 16px; background: white; 
+            border: 4px solid var(--primary-color); border-radius: 50%; 
+        }
+        .t-date { font-weight: bold; color: var(--primary-dark); display: block; margin-bottom: 8px; }
+        .t-content h3 { font-size: 1.2rem; margin: 0 0 10px 0; color: #333; }
+        .t-content ul { padding-left: 20px; margin: 0; color: #555; }
+        .t-content li { margin-bottom: 5px; }
+
+        /* 5. 후원 섹션 */
+        .donation-section { text-align: center; padding-bottom: 100px; }
+        .donation-box { 
+            max-width: 600px; margin: 0 auto; background: white; 
+            padding: 50px; border-radius: 24px; 
+            border: 2px solid #E0F2F1; box-shadow: 0 10px 30px rgba(137, 207, 240, 0.2);
+        }
+        .account-number { 
+            font-size: 1.5em; font-weight: 800; color: var(--primary-dark); 
+            background: #f4faff; padding: 20px; border-radius: 12px; margin: 30px 0; 
+        }
+
+        /* 6. 파트너 섹션 */
+        .partner-section { background: #fff; padding: 60px 5%; text-align: center; border-top: 1px solid #eee; }
+        .partner-grid { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .partner-box {
+            border: 1px solid #eee; background: #fafafa; padding: 15px 30px;
+            border-radius: 50px; font-weight: 600; color: #777; font-size: 0.95rem;
+        }
 
         /* 푸터 */
-        footer { background-color: #333; color: #aaa; padding: 40px 5%; text-align: center; font-size: 0.9em; line-height: 1.8; }
-        footer strong { color: white; }
+        footer { background-color: #333; color: #aaa; padding: 60px 5%; text-align: center; font-size: 0.9em; }
+        footer strong { color: white; font-weight: bold; }
 
         /* 모바일 대응 */
         @media (max-width: 768px) {
-            header { flex-direction: column; gap: 15px; }
+            header { flex-direction: column; gap: 15px; padding: 20px; }
             nav { gap: 15px; font-size: 0.9rem; }
-            .hero h1 { font-size: 1.8em; }
+            .hero h1 { font-size: 2em; }
+            .activities-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -109,8 +127,8 @@
             <span>함께모아서로배움</span>
         </div>
         <nav>
-            <a href="#about">소개</a>
-            <a href="#activities">활동</a>
+            <a href="#about">주요활동</a>
+            <a href="#history">연혁</a>
             <a href="#donate" class="btn-donate">후원하기</a>
         </nav>
     </header>
@@ -118,26 +136,69 @@
     <section class="hero">
         <h1>마음을 모으고 가치를 잇다</h1>
         <p>자원순환과 공정무역으로 만드는<br>인천 계양구의 즐거운 배움터입니다.</p>
-        <a href="#donate" class="btn-donate">동참하기</a>
+        <a href="#donate" class="btn-donate">조합원 가입 및 후원</a>
     </section>
 
     <section id="about">
-        <h2>우리는 이런 일을 합니다</h2>
+        <h2>우리가 만드는 변화</h2>
         <div class="activities-grid">
             <div class="card">
-                <span class="icon">🌱</span>
-                <h3>자원 순환 & 환경</h3>
-                <p>학교 공간 정리수납을 통해<br>버려지는 문구류를 되살리고<br>쾌적한 교육 환경을 만듭니다.</p>
+                <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="학교 환경 개선" class="card-img">
+                <div class="card-content">
+                    <h3>🌱 학교를 숨 쉬게 합니다</h3>
+                    <p>학교의 묵은 짐은 비우고, 필요한 곳에 나눕니다. <strong>'학교 연구실 클린 프로젝트'</strong>를 통해 버려질 뻔한 문구류를 수거하여 아이들에게 다시 전합니다.</p>
+                </div>
             </div>
             <div class="card">
-                <span class="icon">🤝</span>
-                <h3>공정무역 & 로컬</h3>
-                <p>계양산 둘레길 공정여행과<br>윤리적 소비 교육을 통해<br>지역과 세계를 연결합니다.</p>
+                <img src="https://images.unsplash.com/photo-1501555088652-021faa106b9b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="공정여행" class="card-img">
+                <div class="card-content">
+                    <h3>🌍 공정한 세상을 여행합니다</h3>
+                    <p>우리가 걷는 길이 공정한 세상으로 이어집니다. <strong>'계양산 공정여행'</strong> 프로그램을 통해 지역의 생태를 지키고 윤리적 소비 문화를 만듭니다.</p>
+                </div>
             </div>
             <div class="card">
-                <span class="icon">📖</span>
-                <h3>배움 & 일자리</h3>
-                <p>그림책 인성 교육을 진행하고<br>중장년 활동가에게는<br>새로운 일자리를 제공합니다.</p>
+                <img src="https://images.unsplash.com/photo-1512820790803-83ca734da794?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="그림책 교육" class="card-img">
+                <div class="card-content">
+                    <h3>📖 마음을 어루만집니다</h3>
+                    <p>경력 보유 여성과 중장년에게는 <strong>'정리수납 전문가'</strong>라는 새로운 일자리를, 아이들에게는 그림책을 통한 따뜻한 <strong>감정 교육</strong>을 선물합니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="history" class="timeline-section">
+        <h2>걸어온 길</h2>
+        <div class="timeline-container">
+            <div class="timeline-item">
+                <span class="t-date">2025. 10</span>
+                <div class="t-content">
+                    <h3>지역 상생 및 사업 확장</h3>
+                    <ul>
+                        <li>인천시교육청 학교 환경 개선 및 자원순환 프로젝트 제안</li>
+                        <li>계양산 둘레길 연계 '공정무역 로컬 여행' 상품 개발</li>
+                        <li>작전2동 '은총 잔치' 체험 부스 운영 및 기획 지원</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <span class="t-date">2025. 09</span>
+                <div class="t-content">
+                    <h3>교육 콘텐츠 및 역량 강화</h3>
+                    <ul>
+                        <li>그림책(가시소년 등) 활용 감정 코칭 프로그램 런칭</li>
+                        <li>지역 중장년 활동가 대상 정리수납 강사 양성 워크숍</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <span class="t-date">2025. Start</span>
+                <div class="t-content">
+                    <h3>함께모아서로배움 설립</h3>
+                    <ul>
+                        <li>사회적협동조합 설립 인가 및 법인 등기</li>
+                        <li>'배움과 나눔을 통한 지속 가능한 마을' 미션 수립</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </section>
@@ -149,23 +210,28 @@
         <br>
 
         <div class="donation-box">
-            <div class="donate-tabs">
-                <span class="tab active">정기후원</span>
-                <span class="tab">일시후원</span>
-                <span class="tab">물품후원</span>
-            </div>
-            
             <h3>후원 계좌 안내</h3>
+            <p>마음을 모아주시는 곳</p>
             <div class="account-number">
                 농협 000-0000-0000-00
             </div>
             <p>예금주: <strong>함께모아서로배움 사회적협동조합</strong></p>
             <br>
-            <p style="font-size: 0.9em; color: #666;">
-                * 기부금 영수증 발급이 필요하신 분은<br>아래 메일로 연락 부탁드립니다.
+            <p style="font-size: 0.9em; color: #888;">
+                * 기부금 영수증 발급 문의 및 기업 후원 제안은<br>아래 메일로 연락 부탁드립니다.
             </p>
         </div>
     </section>
+
+    <div class="partner-section">
+        <h3 style="color:#999; font-size: 1rem; margin-bottom: 30px;">함께하는 파트너 & 네트워크</h3>
+        <div class="partner-grid">
+            <div class="partner-box">인천광역시교육청 (제안)</div>
+            <div class="partner-box">계양구 사회적경제센터</div>
+            <div class="partner-box">작전2동 성당</div>
+            <div class="partner-box">계양산 둘레길 활동가 모임</div>
+        </div>
+    </div>
 
     <footer>
         <p><strong>함께모아서로배움 사회적협동조합</strong></p>
