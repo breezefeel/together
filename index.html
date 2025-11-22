@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>함께모아서로배움 사회적협동조합</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        :root {
+            --primary-color: #89CFF0; /* 로고의 하늘색 (파스텔톤) */
+            --primary-dark: #5FA8D3;
+            --accent-color: #FF9F43; /* 로고 부리의 오렌지색 */
+            --text-color: #333;
+            --bg-color: #F9FCFF;
+        }
+        
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            margin: 0; padding: 0; 
+            color: var(--text-color); 
+            line-height: 1.6;
+        }
+        
+        /* 상단 헤더 */
+        header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 15px 5%; 
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .logo-container { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 1.2rem; color: var(--primary-dark); }
+        .logo-img { height: 50px; } 
+        
+        nav { display: flex; gap: 20px; align-items: center; }
+        nav a { text-decoration: none; color: #555; font-weight: 500; transition: 0.3s; }
+        nav a:hover { color: var(--primary-dark); }
+        .btn-donate { 
+            background-color: var(--accent-color); 
+            color: white !important; 
+            padding: 10px 20px; 
+            border-radius: 30px; 
+            font-weight: bold;
+        }
+        .btn-donate:hover { background-color: #e68a30; }
+
+        /* 메인 배너 */
+        .hero { 
+            background: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.8)), url('https://images.unsplash.com/photo-1497436072909-60f360e1d4b0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            text-align: center; 
+            padding: 100px 20px; 
+        }
+        .hero h1 { font-size: 2.5em; color: var(--primary-dark); margin-bottom: 15px; word-break: keep-all;}
+        .hero p { font-size: 1.2em; color: #555; margin-bottom: 30px; word-break: keep-all;}
+        
+        /* 섹션 공통 */
+        section { padding: 60px 5%; }
+        h2 { text-align: center; margin-bottom: 40px; color: var(--text-color); font-size: 1.8rem; }
+
+        /* 주요 활동 카드 */
+        .activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+        .card { 
+            background: white; padding: 30px; 
+            border-radius: 15px; 
+            border: 1px solid #eee; 
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card h3 { color: var(--primary-dark); margin-top: 0; }
+        .icon { font-size: 2.5rem; margin-bottom: 15px; display: block; }
+
+        /* 후원 섹션 */
+        .donation-section { background-color: var(--bg-color); text-align: center; }
+        .donation-box { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            border: 2px solid var(--primary-color); 
+        }
+        .account-number { font-size: 1.4em; font-weight: bold; color: var(--primary-dark); background: #f0f8ff; padding: 15px; border-radius: 10px; margin: 20px 0; word-break: break-all;}
+        .donate-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; }
+        .tab.active { background: var(--primary-dark); color: white; border-color: var(--primary-dark); }
+
+        /* 푸터 */
+        footer { background-color: #333; color: #aaa; padding: 40px 5%; text-align: center; font-size: 0.9em; line-height: 1.8; }
+        footer strong { color: white; }
+
+        /* 모바일 대응 */
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 15px; }
+            nav { gap: 15px; font-size: 0.9rem; }
+            .hero h1 { font-size: 1.8em; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <img src="logo.png" alt="HMSB 로고" class="logo-img">
+            <span>함께모아서로배움</span>
+        </div>
+        <nav>
+            <a href="#about">소개</a>
+            <a href="#activities">활동</a>
+            <a href="#donate" class="btn-donate">후원하기</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h1>마음을 모으고 가치를 잇다</h1>
+        <p>자원순환과 공정무역으로 만드는<br>인천 계양구의 즐거운 배움터입니다.</p>
+        <a href="#donate" class="btn-donate">동참하기</a>
+    </section>
+
+    <section id="about">
+        <h2>우리는 이런 일을 합니다</h2>
+        <div class="activities-grid">
+            <div class="card">
+                <span class="icon">🌱</span>
+                <h3>자원 순환 & 환경</h3>
+                <p>학교 공간 정리수납을 통해<br>버려지는 문구류를 되살리고<br>쾌적한 교육 환경을 만듭니다.</p>
+            </div>
+            <div class="card">
+                <span class="icon">🤝</span>
+                <h3>공정무역 & 로컬</h3>
+                <p>계양산 둘레길 공정여행과<br>윤리적 소비 교육을 통해<br>지역과 세계를 연결합니다.</p>
+            </div>
+            <div class="card">
+                <span class="icon">📖</span>
+                <h3>배움 & 일자리</h3>
+                <p>그림책 인성 교육을 진행하고<br>중장년 활동가에게는<br>새로운 일자리를 제공합니다.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="donate" class="donation-section">
+        <h2>함께 만드는 변화</h2>
+        <p>여러분의 소중한 후원은<br>지역 아동 교육과 환경 개선 활동에 투명하게 사용됩니다.</p>
+        
+        <br>
+
+        <div class="donation-box">
+            <div class="donate-tabs">
+                <span class="tab active">정기후원</span>
+                <span class="tab">일시후원</span>
+                <span class="tab">물품후원</span>
+            </div>
+            
+            <h3>후원 계좌 안내</h3>
+            <div class="account-number">
+                농협 000-0000-0000-00
+            </div>
+            <p>예금주: <strong>함께모아서로배움 사회적협동조합</strong></p>
+            <br>
+            <p style="font-size: 0.9em; color: #666;">
+                * 기부금 영수증 발급이 필요하신 분은<br>아래 메일로 연락 부탁드립니다.
+            </p>
+        </div>
+    </section>
+
+    <footer>
+        <p><strong>함께모아서로배움 사회적협동조합</strong></p>
+        <p>이사장: 홍길동 | 고유번호: 000-00-00000</p>
+        <p>주소: 인천광역시 계양구 OO로 OO</p>
+        <p>이메일: contact@hmsb.kr | 전화: 032-000-0000</p>
+        <br>
+        <p>Copyright © HMSB Alliance. All Rights Reserved.</p>
+    </footer>
+
+</body>
+</html>
