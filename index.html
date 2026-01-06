@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="인천 계양구 자원순환 및 공정무역 교육, 함께모아서로배움 사회적협동조합">
     <title>함께모아서로배움 사회적협동조합</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         :root {
-            --primary-color: #89CFF0; /* 로고 하늘색 */
+            --primary-color: #89CFF0; 
             --primary-dark: #5FA8D3;
-            --accent-color: #FF9F43; /* 포인트 오렌지 */
+            --accent-color: #FF9F43; 
             --text-color: #333;
             --bg-color: #F9FCFF;
+            --border-color: #eee;
         }
         
         * { box-sizing: border-box; }
@@ -20,7 +22,7 @@
             margin: 0; padding: 0; 
             color: var(--text-color); 
             line-height: 1.6;
-            word-break: keep-all; /* 한글 줄바꿈 최적화 */
+            word-break: keep-all; 
         }
         
         /* 1. 헤더 */
@@ -31,45 +33,44 @@
             position: sticky; top: 0; z-index: 1000;
         }
         .logo-container { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1.2rem; color: var(--primary-dark); }
-        .logo-img { height: 55px; border-radius: 50%; } 
+        .logo-img { height: 50px; border-radius: 50%; } 
         
-        nav { display: flex; gap: 25px; align-items: center; }
-        nav a { text-decoration: none; color: #555; font-weight: 500; font-size: 1rem; transition: 0.3s; }
+        nav { display: flex; gap: 20px; align-items: center; }
+        nav a { text-decoration: none; color: #555; font-weight: 500; font-size: 0.95rem; transition: 0.3s; }
         nav a:hover { color: var(--primary-dark); }
         .btn-donate { 
             background-color: var(--accent-color); color: white !important; 
-            padding: 10px 24px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(255, 159, 67, 0.2);
+            padding: 8px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 4px 6px rgba(255, 159, 67, 0.2);
         }
         .btn-donate:hover { background-color: #e68a30; transform: translateY(-2px); }
 
-        /* 2. 메인 배너 (Hero) */
+        /* 2. 메인 배너 */
         .hero { 
-            /* 배경: 아이들과 자연이 어우러진 따뜻한 이미지 */
-            background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
             background-size: cover; background-position: center;
             text-align: center; padding: 140px 20px; color: white;
         }
-        .hero h1 { font-size: 2.8em; margin-bottom: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-        .hero p { font-size: 1.3em; margin-bottom: 40px; opacity: 0.95; font-weight: 300; }
+        .hero h1 { font-size: 2.5em; margin-bottom: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .hero p { font-size: 1.2em; margin-bottom: 40px; opacity: 0.95; font-weight: 300; }
         
         /* 섹션 공통 */
         section { padding: 80px 5%; max-width: 1200px; margin: 0 auto; }
         h2 { text-align: center; margin-bottom: 50px; color: #222; font-size: 2rem; letter-spacing: -1px; }
 
-        /* 3. 주요 활동 (이미지 카드형) */
-        .activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
+        /* 3. 주요 활동 */
+        .activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
         .card { 
             background: white; border-radius: 16px; overflow: hidden;
-            border: 1px solid #eee; box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color); box-shadow: 0 10px 20px rgba(0,0,0,0.05);
             transition: transform 0.3s ease;
         }
-        .card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
+        .card:hover { transform: translateY(-5px); }
         .card-img { width: 100%; height: 200px; object-fit: cover; }
-        .card-content { padding: 30px; text-align: left; }
-        .card h3 { color: var(--primary-dark); margin-top: 0; font-size: 1.4rem; }
-        .card p { color: #666; font-size: 1rem; margin-bottom: 0; }
+        .card-content { padding: 25px; text-align: left; }
+        .card h3 { color: var(--primary-dark); margin-top: 0; font-size: 1.3rem; }
+        .card p { color: #666; font-size: 0.95rem; margin-bottom: 0; }
 
-        /* 4. 활동 연혁 (Timeline) */
+        /* 4. 활동 연혁 */
         .timeline-section { background-color: #F9FCFF; width: 100%; max-width: 100%; }
         .timeline-container { max-width: 800px; margin: 0 auto; }
         .timeline-item { 
@@ -82,40 +83,55 @@
             border: 4px solid var(--primary-color); border-radius: 50%; 
         }
         .t-date { font-weight: bold; color: var(--primary-dark); display: block; margin-bottom: 8px; }
-        .t-content h3 { font-size: 1.2rem; margin: 0 0 10px 0; color: #333; }
-        .t-content ul { padding-left: 20px; margin: 0; color: #555; }
-        .t-content li { margin-bottom: 5px; }
 
-        /* 5. 후원 섹션 */
-        .donation-section { text-align: center; padding-bottom: 100px; }
+        /* 5. 경영공시 (법적 필수 - 이미지 요건 반영) */
+        .disclosure-section { background: white; border-top: 1px solid var(--border-color); }
+        .disclosure-box {
+            border: 1px solid #ddd; padding: 30px; border-radius: 10px; background: #fafafa;
+        }
+        .disclosure-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        .disclosure-table th, .disclosure-table td { 
+            border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 0.9rem; 
+        }
+        .disclosure-table th { background-color: #f1f1f1; color: #333; }
+        .btn-report {
+            display: inline-block; margin-top: 20px; padding: 10px 20px;
+            background: #333; color: white; text-decoration: none; border-radius: 5px; font-size: 0.9rem;
+        }
+
+        /* 6. 후원 섹션 */
+        .donation-section { text-align: center; background-color: #fff; }
         .donation-box { 
             max-width: 600px; margin: 0 auto; background: white; 
-            padding: 50px; border-radius: 24px; 
+            padding: 40px; border-radius: 24px; 
             border: 2px solid #E0F2F1; box-shadow: 0 10px 30px rgba(137, 207, 240, 0.2);
         }
         .account-number { 
-            font-size: 1.5em; font-weight: 800; color: var(--primary-dark); 
-            background: #f4faff; padding: 20px; border-radius: 12px; margin: 30px 0; 
+            font-size: 1.4em; font-weight: 800; color: var(--primary-dark); 
+            background: #f4faff; padding: 20px; border-radius: 12px; margin: 20px 0; 
         }
 
-        /* 6. 파트너 섹션 */
-        .partner-section { background: #fff; padding: 60px 5%; text-align: center; border-top: 1px solid #eee; }
-        .partner-grid { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        /* 7. 파트너 & 푸터 */
+        .partner-section { background: #fff; padding: 50px 5%; text-align: center; border-top: 1px solid #eee; }
+        .partner-grid { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
         .partner-box {
-            border: 1px solid #eee; background: #fafafa; padding: 15px 30px;
-            border-radius: 50px; font-weight: 600; color: #777; font-size: 0.95rem;
+            border: 1px solid #eee; background: #fafafa; padding: 10px 25px;
+            border-radius: 50px; font-weight: 600; color: #777; font-size: 0.9rem;
         }
 
-        /* 푸터 */
-        footer { background-color: #333; color: #aaa; padding: 60px 5%; text-align: center; font-size: 0.9em; }
+        footer { background-color: #2c3e50; color: #bbb; padding: 60px 5%; text-align: center; font-size: 0.85em; }
         footer strong { color: white; font-weight: bold; }
+        footer a { color: #bbb; text-decoration: underline; }
+        
+        /* 공익제보 배너 (법적 필수) */
+        .public-report {
+            margin-top: 20px; padding: 15px; border: 1px solid #555; display: inline-block; border-radius: 8px;
+        }
 
-        /* 모바일 대응 */
         @media (max-width: 768px) {
             header { flex-direction: column; gap: 15px; padding: 20px; }
-            nav { gap: 15px; font-size: 0.9rem; }
-            .hero h1 { font-size: 2em; }
-            .activities-grid { grid-template-columns: 1fr; }
+            nav { gap: 10px; flex-wrap: wrap; justify-content: center; }
+            .hero h1 { font-size: 1.8em; }
         }
     </style>
 </head>
@@ -129,6 +145,7 @@
         <nav>
             <a href="#about">주요활동</a>
             <a href="#history">연혁</a>
+            <a href="#disclosure">경영공시</a> 
             <a href="#donate" class="btn-donate">후원하기</a>
         </nav>
     </header>
@@ -146,7 +163,7 @@
                 <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="학교 환경 개선" class="card-img">
                 <div class="card-content">
                     <h3>🌱 학교를 숨 쉬게 합니다</h3>
-                    <p>학교의 묵은 짐은 비우고, 필요한 곳에 나눕니다. <strong>'학교 연구실 클린 프로젝트'</strong>를 통해 버려질 뻔한 문구류를 수거하여 아이들에게 다시 전합니다.</p>
+                    <p>학교의 묵은 짐은 비우고, 필요한 곳에 나눕니다. <strong>'학교 연구실 클린 프로젝트'</strong>를 통해 버려질 뻔한 자원을 아이들에게 다시 전합니다.</p>
                 </div>
             </div>
             <div class="card">
@@ -160,7 +177,7 @@
                 <img src="https://images.unsplash.com/photo-1512820790803-83ca734da794?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="그림책 교육" class="card-img">
                 <div class="card-content">
                     <h3>📖 마음을 어루만집니다</h3>
-                    <p>경력 보유 여성과 중장년에게는 <strong>'정리수납 전문가'</strong>라는 새로운 일자리를, 아이들에게는 그림책을 통한 따뜻한 <strong>감정 교육</strong>을 선물합니다.</p>
+                    <p>중장년에게는 <strong>'정리수납 전문가'</strong>라는 새로운 일자리를, 아이들에게는 그림책을 통한 따뜻한 <strong>감정 교육</strong>을 선물합니다.</p>
                 </div>
             </div>
         </div>
@@ -176,57 +193,83 @@
                     <ul>
                         <li>인천시교육청 학교 환경 개선 및 자원순환 프로젝트 제안</li>
                         <li>계양산 둘레길 연계 '공정무역 로컬 여행' 상품 개발</li>
-                        <li>작전2동 '은총 잔치' 체험 부스 운영 및 기획 지원</li>
                     </ul>
                 </div>
             </div>
             <div class="timeline-item">
                 <span class="t-date">2025. 09</span>
                 <div class="t-content">
-                    <h3>교육 콘텐츠 및 역량 강화</h3>
+                    <h3>교육 콘텐츠 런칭</h3>
                     <ul>
-                        <li>그림책(가시소년 등) 활용 감정 코칭 프로그램 런칭</li>
-                        <li>지역 중장년 활동가 대상 정리수납 강사 양성 워크숍</li>
+                        <li>그림책(가시소년 등) 활용 감정 코칭 프로그램 시작</li>
+                        <li>지역 중장년 활동가 대상 정리수납 강사 양성</li>
                     </ul>
                 </div>
             </div>
             <div class="timeline-item">
-                <span class="t-date">2025. Start</span>
+                <span class="t-date">2025. 01</span>
                 <div class="t-content">
                     <h3>함께모아서로배움 설립</h3>
                     <ul>
                         <li>사회적협동조합 설립 인가 및 법인 등기</li>
-                        <li>'배움과 나눔을 통한 지속 가능한 마을' 미션 수립</li>
                     </ul>
                 </div>
             </div>
         </div>
     </section>
 
+    <section id="disclosure" class="disclosure-section">
+        <h2>투명한 운영 (경영공시)</h2>
+        <div class="disclosure-box">
+            <p><strong>함께모아서로배움 사회적협동조합</strong>은 「법인세법 시행령」에 의거하여, 연간 기부금 모금액 및 활용실적을 본 홈페이지와 국세청 홈페이지에 투명하게 공개합니다.</p>
+            
+            <h4 style="margin-top:30px;">📄 연간 기부금 모금액 및 활용실적</h4>
+            <table class="disclosure-table">
+                <thead>
+                    <tr>
+                        <th>귀속년도</th>
+                        <th>모금액(원)</th>
+                        <th>활용실적(원)</th>
+                        <th>상세내역</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2025년</td>
+                        <td>0</td>
+                        <td>0</td>
+                        <td><a href="#">다운로드 (예정)</a></td>
+                    </tr>
+                    </tbody>
+            </table>
+            <p style="font-size: 0.85em; color: #888; margin-top: 10px;">
+                ※ 결산 보고 후 매년 4월 말까지 업데이트 됩니다.<br>
+                ※ 기부금 모금액이 없는 경우에도 내역을 공개합니다.
+            </p>
+        </div>
+    </section>
+
     <section id="donate" class="donation-section">
         <h2>함께 만드는 변화</h2>
-        <p>여러분의 소중한 후원은<br>지역 아동 교육과 환경 개선 활동에 투명하게 사용됩니다.</p>
+        <p>여러분의 소중한 후원은 지역 교육과 환경 개선 활동에 투명하게 사용됩니다.</p>
         
-        <br>
-
         <div class="donation-box">
             <h3>후원 계좌 안내</h3>
-            <p>마음을 모아주시는 곳</p>
             <div class="account-number">
                 농협 000-0000-0000-00
             </div>
             <p>예금주: <strong>함께모아서로배움 사회적협동조합</strong></p>
             <br>
             <p style="font-size: 0.9em; color: #888;">
-                * 기부금 영수증 발급 문의 및 기업 후원 제안은<br>아래 메일로 연락 부탁드립니다.
+                * 기부금 영수증 발급 문의 및 기업 후원 제안은 메일로 연락 부탁드립니다.
             </p>
         </div>
     </section>
 
     <div class="partner-section">
-        <h3 style="color:#999; font-size: 1rem; margin-bottom: 30px;">함께하는 파트너 & 네트워크</h3>
+        <h3 style="color:#999; font-size: 1rem; margin-bottom: 30px;">함께하는 파트너</h3>
         <div class="partner-grid">
-            <div class="partner-box">인천광역시교육청 (제안)</div>
+            <div class="partner-box">인천광역시교육청 (협력)</div>
             <div class="partner-box">계양구 사회적경제센터</div>
             <div class="partner-box">작전2동 성당</div>
             <div class="partner-box">계양산 둘레길 활동가 모임</div>
@@ -235,10 +278,18 @@
 
     <footer>
         <p><strong>함께모아서로배움 사회적협동조합</strong></p>
-        <p>이사장: 홍길동 | 고유번호: 000-00-00000</p>
+        <p>이사장: 홍길동 | 사업자등록번호: 000-00-00000</p>
         <p>주소: 인천광역시 계양구 OO로 OO</p>
         <p>이메일: contact@hmsb.kr | 전화: 032-000-0000</p>
-        <br>
+        
+        <div class="public-report">
+            <p style="margin:0 0 10px 0; color: #ddd;">본 법인은 공익위반사항을 관리·감독할 수 있는 기관에 제보가 가능하도록 연결되어 있습니다.</p>
+            <a href="https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=2471&cntntsId=7709" target="_blank" class="btn-report" style="background:white; color:#333; font-weight:bold;">
+                국세청 공익위반사항 제보하기 &gt;
+            </a>
+        </div>
+
+        <br><br>
         <p>Copyright © HMSB Alliance. All Rights Reserved.</p>
     </footer>
 
