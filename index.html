@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="인천 계양구 자원순환 및 공정무역 교육, 함께모아서로배움 사회적협동조합">
+    <meta name="description" content="자주, 자립, 자치적인 협동의 힘으로 만드는 평생학습 공동체, 함께모아서로배움 사회적협동조합">
     <title>함께모아서로배움 사회적협동조합</title>
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
@@ -25,14 +25,15 @@
             word-break: keep-all; 
         }
         
-        /* 1. 헤더 */
+        /* 헤더 */
         header { 
             display: flex; justify-content: space-between; align-items: center; 
             padding: 15px 5%; background: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             position: sticky; top: 0; z-index: 1000;
         }
-        .logo-container { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1.2rem; color: var(--primary-dark); }
+        /* 로고 텍스트 크기 조정 (이름이 길어져서) */
+        .logo-container { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; color: var(--primary-dark); }
         .logo-img { height: 50px; border-radius: 50%; } 
         
         nav { display: flex; gap: 20px; align-items: center; }
@@ -44,20 +45,33 @@
         }
         .btn-donate:hover { background-color: #e68a30; transform: translateY(-2px); }
 
-        /* 2. 메인 배너 */
+        /* 2. 메인 배너 (Hero) 수정 - 텍스트 양에 맞춰 패딩과 배경 조정 */
         .hero { 
-            background: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
             background-size: cover; background-position: center;
-            text-align: center; padding: 140px 20px; color: white;
+            text-align: center; 
+            padding: 100px 20px; /* 텍스트가 많아져서 상하 여백 조정 */
+            color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .hero h1 { font-size: 2.5em; margin-bottom: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-        .hero p { font-size: 1.2em; margin-bottom: 40px; opacity: 0.95; font-weight: 300; }
+        .hero h1 { 
+            font-size: 2.2em; margin-bottom: 30px; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+            word-break: keep-all;
+        }
+        /* 긴 텍스트를 위한 스타일 */
+        .hero-desc { 
+            font-size: 1.15em; line-height: 1.8; 
+            margin-bottom: 40px; max-width: 800px; 
+            opacity: 0.95; font-weight: 300; 
+            white-space: pre-line; /* 줄바꿈 반영 */
+        }
         
         /* 섹션 공통 */
         section { padding: 80px 5%; max-width: 1200px; margin: 0 auto; }
         h2 { text-align: center; margin-bottom: 50px; color: #222; font-size: 2rem; letter-spacing: -1px; }
 
-        /* 3. 주요 활동 */
+        /* 활동 카드 */
         .activities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
         .card { 
             background: white; border-radius: 16px; overflow: hidden;
@@ -70,7 +84,7 @@
         .card h3 { color: var(--primary-dark); margin-top: 0; font-size: 1.3rem; }
         .card p { color: #666; font-size: 0.95rem; margin-bottom: 0; }
 
-        /* 4. 활동 연혁 */
+        /* 연혁 */
         .timeline-section { background-color: #F9FCFF; width: 100%; max-width: 100%; }
         .timeline-container { max-width: 800px; margin: 0 auto; }
         .timeline-item { 
@@ -84,7 +98,7 @@
         }
         .t-date { font-weight: bold; color: var(--primary-dark); display: block; margin-bottom: 8px; }
 
-        /* 5. 경영공시 (법적 필수 - 이미지 요건 반영) */
+        /* 경영공시 */
         .disclosure-section { background: white; border-top: 1px solid var(--border-color); }
         .disclosure-box {
             border: 1px solid #ddd; padding: 30px; border-radius: 10px; background: #fafafa;
@@ -99,7 +113,7 @@
             background: #333; color: white; text-decoration: none; border-radius: 5px; font-size: 0.9rem;
         }
 
-        /* 6. 후원 섹션 */
+        /* 후원 */
         .donation-section { text-align: center; background-color: #fff; }
         .donation-box { 
             max-width: 600px; margin: 0 auto; background: white; 
@@ -107,11 +121,11 @@
             border: 2px solid #E0F2F1; box-shadow: 0 10px 30px rgba(137, 207, 240, 0.2);
         }
         .account-number { 
-            font-size: 1.4em; font-weight: 800; color: var(--primary-dark); 
+            font-size: 1.5rem; font-weight: 800; color: var(--primary-dark); 
             background: #f4faff; padding: 20px; border-radius: 12px; margin: 20px 0; 
         }
 
-        /* 7. 파트너 & 푸터 */
+        /* 파트너 & 푸터 */
         .partner-section { background: #fff; padding: 50px 5%; text-align: center; border-top: 1px solid #eee; }
         .partner-grid { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
         .partner-box {
@@ -123,7 +137,6 @@
         footer strong { color: white; font-weight: bold; }
         footer a { color: #bbb; text-decoration: underline; }
         
-        /* 공익제보 배너 (법적 필수) */
         .public-report {
             margin-top: 20px; padding: 15px; border: 1px solid #555; display: inline-block; border-radius: 8px;
         }
@@ -132,6 +145,7 @@
             header { flex-direction: column; gap: 15px; padding: 20px; }
             nav { gap: 10px; flex-wrap: wrap; justify-content: center; }
             .hero h1 { font-size: 1.8em; }
+            .hero-desc { font-size: 1em; padding: 0 10px; }
         }
     </style>
 </head>
@@ -140,7 +154,7 @@
     <header>
         <div class="logo-container">
             <img src="https://breezefeel.github.io/together/IMG_4569.jpeg" alt="HMSB 로고" class="logo-img">
-            <span>함께모아서로배움</span>
+            <span>함께모아서로배움 사회적협동조합</span>
         </div>
         <nav>
             <a href="#about">주요활동</a>
@@ -151,8 +165,20 @@
     </header>
 
     <section class="hero">
-        <h1>마음을 모으고 가치를 잇다</h1>
-        <p>자원순환과 공정무역으로 만드는<br>인천 계양구의 즐거운 배움터입니다.</p>
+        <h1>함께모아서로배움 사회적협동조합</h1>
+        <div class="hero-desc">
+            자주적·자립적·자치적인 협동의 힘으로<br>
+            마을 속에서 모두가 함께 배우고 돌보는 평생학습 공동체를 만들어갑니다.<br><br>
+            
+            100세 시대를 살아가는 모든 세대가 서로의 경험과 지혜를 나누며,<br>
+            배움이 돌봄이 되고 돌봄이 다시 배움이 되는<br>
+            순환型 마을교육의 문화를 일구고자 합니다.<br><br>
+
+            <strong>우리의 목표는</strong><br>
+            사람과 사람이 연결되고, 세대가 이어지며,<br>
+            누구나 자발적으로 참여하고 성장할 수 있는<br>
+            살기 좋은 행복한 마을의 롤모델을 만드는 것입니다.
+        </div>
         <a href="#donate" class="btn-donate">조합원 가입 및 후원</a>
     </section>
 
@@ -240,7 +266,7 @@
                         <td>0</td>
                         <td><a href="#">다운로드 (예정)</a></td>
                     </tr>
-                    </tbody>
+                </tbody>
             </table>
             <p style="font-size: 0.85em; color: #888; margin-top: 10px;">
                 ※ 결산 보고 후 매년 4월 말까지 업데이트 됩니다.<br>
