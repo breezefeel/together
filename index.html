@@ -47,36 +47,31 @@
         }
         .btn-donate:hover { background-color: #e68a30; transform: translateY(-2px); }
 
-        /* 2. 메인 배너 (Hero) 디자인 수정 */
+        /* 메인 배너 */
         .hero { 
-            /* 배경 어둡기 조절: 0.5 -> 0.4 (배경이 조금 더 밝아짐) */
             background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
             background-size: cover; background-position: center;
             text-align: center; 
             padding: 120px 20px; 
-            color: #ffffff; /* 완전한 흰색 */
+            color: #ffffff; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        
         .hero h1 { 
-            font-family: 'Gowun Dodum', sans-serif; /* 부드러운 폰트 적용 */
+            font-family: 'Gowun Dodum', sans-serif;
             font-size: 2.4em; 
             margin-bottom: 25px; 
-            text-shadow: 0 2px 15px rgba(0,0,0,0.4); /* 글자 잘 보이게 그림자 강화 */
-            word-break: keep-all;
+            text-shadow: 0 2px 15px rgba(0,0,0,0.4); 
         }
-
-        /* 설명 문구 스타일 수정 */
         .hero-desc { 
-            font-family: 'Gowun Dodum', sans-serif; /* 부드러운 폰트 적용 */
+            font-family: 'Gowun Dodum', sans-serif;
             font-size: 1.25em; 
-            line-height: 1.45; /* 줄간격 좁게 (1.8 -> 1.45) */
+            line-height: 1.45; 
             margin-bottom: 40px; 
             max-width: 800px; 
-            opacity: 1; /* 투명도 제거 (칙칙함 해결) */
-            font-weight: 400; /* 두께감 있게 조정 */
+            opacity: 1; 
+            font-weight: 400; 
             white-space: pre-line;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.5); /* 배경과 분리되도록 그림자 추가 */
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5); 
         }
         
         /* 섹션 공통 */
@@ -108,56 +103,80 @@
             width: 16px; height: 16px; background: white; 
             border: 4px solid var(--primary-color); border-radius: 50%; 
         }
-        .t-date { font-weight: bold; color: var(--primary-dark); display: block; margin-bottom: 8px; }
+        .t-date { font-weight: bold; color: var(--primary-dark); display: block; margin-bottom: 8px; font-size: 1.1rem; }
+        .t-content h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: #333; }
+        .t-content p { margin: 0; color: #666; font-size: 0.95rem; }
 
-        /* 경영공시 */
+        /* 경영공시 & 게시판 테이블 공통 */
+        .table-wrap { width: 100%; overflow-x: auto; }
+        .common-table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
+        .common-table th, .common-table td { 
+            border-bottom: 1px solid #eee; padding: 15px; text-align: center; font-size: 0.9rem; 
+        }
+        .common-table th { background-color: #f8f9fa; color: #333; font-weight: 600; border-top: 2px solid #333; }
+        
+        /* 경영공시 섹션 */
         .disclosure-section { background: white; border-top: 1px solid var(--border-color); }
         .disclosure-box {
-            border: 1px solid #ddd; padding: 30px; border-radius: 10px; background: #fafafa;
+            border: 1px solid #ddd; padding: 40px; border-radius: 10px; background: #fafafa;
         }
-        .disclosure-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-        .disclosure-table th, .disclosure-table td { 
-            border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 0.9rem; 
-        }
-        .disclosure-table th { background-color: #f1f1f1; color: #333; }
-        .btn-report {
-            display: inline-block; margin-top: 20px; padding: 10px 20px;
-            background: #333; color: white; text-decoration: none; border-radius: 5px; font-size: 0.9rem;
+
+        /* 일반 게시판 섹션 */
+        .board-section { background-color: #F9FCFF; }
+        .board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-write { 
+            background: var(--primary-dark); color: white; padding: 8px 20px; 
+            text-decoration: none; border-radius: 5px; font-size: 0.9rem; 
         }
 
         /* 후원 */
         .donation-section { text-align: center; background-color: #fff; }
         .donation-box { 
-            max-width: 600px; margin: 0 auto; background: white; 
+            max-width: 700px; margin: 0 auto; background: white; 
             padding: 40px; border-radius: 24px; 
             border: 2px solid #E0F2F1; box-shadow: 0 10px 30px rgba(137, 207, 240, 0.2);
         }
         .account-number { 
-            font-size: 1.5rem; font-weight: 800; color: var(--primary-dark); 
+            font-size: 1.6rem; font-weight: 800; color: var(--primary-dark); 
             background: #f4faff; padding: 20px; border-radius: 12px; margin: 20px 0; 
+            word-break: break-all;
         }
 
         /* 파트너 & 푸터 */
-        .partner-section { background: #fff; padding: 50px 5%; text-align: center; border-top: 1px solid #eee; }
+        .partner-section { background: #fff; padding: 60px 5%; text-align: center; border-top: 1px solid #eee; }
         .partner-grid { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
         .partner-box {
-            border: 1px solid #eee; background: #fafafa; padding: 10px 25px;
-            border-radius: 50px; font-weight: 600; color: #777; font-size: 0.9rem;
+            display: inline-block;
+            border: 1px solid #eee; background: #fafafa; padding: 12px 25px;
+            border-radius: 50px; font-weight: 600; color: #555; font-size: 0.9rem;
+            text-decoration: none; transition: 0.2s;
         }
+        .partner-box:hover { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 
-        footer { background-color: #2c3e50; color: #bbb; padding: 60px 5%; text-align: center; font-size: 0.85em; }
-        footer strong { color: white; font-weight: bold; }
-        footer a { color: #bbb; text-decoration: underline; }
+        footer { background-color: #2c3e50; color: #bbb; padding: 60px 5%; font-size: 0.85em; }
+        .footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 40px; }
+        .footer-info p { margin: 5px 0; }
+        .footer-info strong { color: white; }
         
-        .public-report {
-            margin-top: 20px; padding: 15px; border: 1px solid #555; display: inline-block; border-radius: 8px;
+        /* 공익제보 관련 링크 박스 */
+        .supervision-links { 
+            background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px; 
+            max-width: 400px;
         }
+        .supervision-links h4 { color: white; margin: 0 0 15px 0; font-size: 1rem; }
+        .link-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .link-item {
+            color: #ddd; text-decoration: none; background: #444; padding: 8px; 
+            text-align: center; border-radius: 4px; font-size: 0.8rem; display: block;
+        }
+        .link-item:hover { background: #666; color: white; }
 
         @media (max-width: 768px) {
             header { flex-direction: column; gap: 15px; padding: 20px; }
             nav { gap: 10px; flex-wrap: wrap; justify-content: center; }
             .hero h1 { font-size: 1.8em; }
             .hero-desc { font-size: 1.1em; padding: 0 10px; }
+            .footer-content { flex-direction: column; }
         }
     </style>
 </head>
@@ -172,6 +191,7 @@
             <a href="#about">주요활동</a>
             <a href="#history">연혁</a>
             <a href="#disclosure">경영공시</a> 
+            <a href="#board">소통해요</a>
             <a href="#donate" class="btn-donate">후원하기</a>
         </nav>
     </header>
@@ -225,32 +245,47 @@
         <h2>걸어온 길</h2>
         <div class="timeline-container">
             <div class="timeline-item">
-                <span class="t-date">2025. 10</span>
+                <span class="t-date">2025</span>
                 <div class="t-content">
-                    <h3>지역 상생 및 사업 확장</h3>
-                    <ul>
-                        <li>인천시교육청 학교 환경 개선 및 자원순환 프로젝트 제안</li>
-                        <li>계양산 둘레길 연계 '공정무역 로컬 여행' 상품 개발</li>
-                    </ul>
+                    <h3>인천 계양구 공정무역 공정여행 프로그램 개발</h3>
                 </div>
             </div>
             <div class="timeline-item">
-                <span class="t-date">2025. 09</span>
+                <span class="t-date">2024</span>
                 <div class="t-content">
-                    <h3>교육 콘텐츠 런칭</h3>
-                    <ul>
-                        <li>그림책(가시소년 등) 활용 감정 코칭 프로그램 시작</li>
-                        <li>지역 중장년 활동가 대상 정리수납 강사 양성</li>
-                    </ul>
+                    <h3>인천공공기관 혁신 네트워크 사회서비스 진행</h3>
+                    <p>'따뜻한 꽃 문안, 어르신 마음에 찾아온 꽃 봄'</p>
                 </div>
             </div>
             <div class="timeline-item">
-                <span class="t-date">2025. 01</span>
+                <span class="t-date">2023</span>
                 <div class="t-content">
-                    <h3>함께모아서로배움 설립</h3>
-                    <ul>
-                        <li>사회적협동조합 설립 인가 및 법인 등기</li>
-                    </ul>
+                    <h3>인천광역시 교육청 사회적협동조합 지원사업</h3>
+                    <p>'마을교육 프로그램 발굴' 수행</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <span class="t-date">2022. 08</span>
+                <div class="t-content">
+                    <h3>교육부 사회적협동조합 설립 인가</h3>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <span class="t-date">2022</span>
+                <div class="t-content">
+                    <h3>인천광역시 '천개의 오아시스' 사업 선정 및 운영</h3>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <span class="t-date">2022. 03</span>
+                <div class="t-content">
+                    <h3>함께모아서로배움 사회적협동조합 창립총회</h3>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <span class="t-date">2018. 03</span>
+                <div class="t-content">
+                    <h3>'계양봉사단' 공동체 활동 모임 시작</h3>
                 </div>
             </div>
         </div>
@@ -262,28 +297,71 @@
             <p><strong>함께모아서로배움 사회적협동조합</strong>은 「법인세법 시행령」에 의거하여, 연간 기부금 모금액 및 활용실적을 본 홈페이지와 국세청 홈페이지에 투명하게 공개합니다.</p>
             
             <h4 style="margin-top:30px;">📄 연간 기부금 모금액 및 활용실적</h4>
-            <table class="disclosure-table">
-                <thead>
-                    <tr>
-                        <th>귀속년도</th>
-                        <th>모금액(원)</th>
-                        <th>활용실적(원)</th>
-                        <th>상세내역</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>2025년</td>
-                        <td>0</td>
-                        <td>0</td>
-                        <td><a href="#">다운로드 (예정)</a></td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table class="common-table">
+                    <thead>
+                        <tr>
+                            <th>귀속년도</th>
+                            <th>모금액(원)</th>
+                            <th>활용실적(원)</th>
+                            <th>상세내역</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2026년</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td><span>(2027년 공시 예정)</span></td>
+                        </tr>
+                        </tbody>
+                </table>
+            </div>
             <p style="font-size: 0.85em; color: #888; margin-top: 10px;">
                 ※ 결산 보고 후 매년 4월 말까지 업데이트 됩니다.<br>
                 ※ 기부금 모금액이 없는 경우에도 내역을 공개합니다.
             </p>
+        </div>
+    </section>
+
+    <section id="board" class="board-section">
+        <h2>소통해요</h2>
+        <div class="board-header">
+            <p style="margin:0;">누구나 자유롭게 의견을 남길 수 있는 공간입니다.</p>
+            <a href="#" class="btn-write" onclick="alert('준비 중인 기능입니다.'); return false;">글쓰기</a>
+        </div>
+        
+        <div class="table-wrap">
+            <table class="common-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">번호</th>
+                        <th style="width: 50%;">제목</th>
+                        <th style="width: 20%;">작성자</th>
+                        <th style="width: 20%;">작성일</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td style="text-align: left;">함께모아서로배움 응원합니다!</td>
+                        <td>김철수</td>
+                        <td>2025.10.25</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td style="text-align: left;">자원순환 교육 문의드립니다.</td>
+                        <td>이영희</td>
+                        <td>2025.10.28</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td style="text-align: left;">후원회원으로 가입하고 싶어요.</td>
+                        <td>박민수</td>
+                        <td>2025.11.02</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </section>
 
@@ -294,7 +372,7 @@
         <div class="donation-box">
             <h3>후원 계좌 안내</h3>
             <div class="account-number">
-                농협 000-0000-0000-00
+                새마을금고 9002-2004-5634-3
             </div>
             <p>예금주: <strong>함께모아서로배움 사회적협동조합</strong></p>
             <br>
@@ -305,30 +383,39 @@
     </section>
 
     <div class="partner-section">
-        <h3 style="color:#999; font-size: 1rem; margin-bottom: 30px;">함께하는 파트너</h3>
+        <h3 style="color:#999; font-size: 1rem; margin-bottom: 30px;">함께하는 파트너 & 네트워크</h3>
         <div class="partner-grid">
-            <div class="partner-box">인천광역시교육청 (협력)</div>
-            <div class="partner-box">계양구 사회적경제센터</div>
-            <div class="partner-box">작전2동 성당</div>
-            <div class="partner-box">계양산 둘레길 활동가 모임</div>
+            <a href="https://www.ice.go.kr" target="_blank" class="partner-box">인천광역시교육청</a>
+            <a href="https://www.incheon.go.kr" target="_blank" class="partner-box">인천광역시</a>
+            <a href="https://www.gyeyang.go.kr" target="_blank" class="partner-box">인천 계양구</a>
+            <a href="https://www.incheon.go.kr/social" target="_blank" class="partner-box">인천사회적경제센터</a>
+            <a href="https://www.coop4a.or.kr" target="_blank" class="partner-box">인천협동조합협의회</a>
         </div>
     </div>
 
     <footer>
-        <p><strong>함께모아서로배움 사회적협동조합</strong></p>
-        <p>이사장: 홍길동 | 사업자등록번호: 000-00-00000</p>
-        <p>주소: 인천광역시 계양구 OO로 OO</p>
-        <p>이메일: contact@hmsb.kr | 전화: 032-000-0000</p>
-        
-        <div class="public-report">
-            <p style="margin:0 0 10px 0; color: #ddd;">본 법인은 공익위반사항을 관리·감독할 수 있는 기관에 제보가 가능하도록 연결되어 있습니다.</p>
-            <a href="https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?mi=2471&cntntsId=7709" target="_blank" class="btn-report" style="background:white; color:#333; font-weight:bold;">
-                국세청 공익위반사항 제보하기 &gt;
-            </a>
-        </div>
+        <div class="footer-content">
+            <div class="footer-info">
+                <p style="font-size: 1.1em; margin-bottom: 15px;"><strong>함께모아서로배움 사회적협동조합</strong></p>
+                <p>이사장: 홍길동 | 고유번호: 000-00-00000</p>
+                <p>주소: 인천광역시 계양구 OO로 OO</p>
+                <p>이메일: <a href="mailto:essen4@hanmail.net" style="color:#bbb;">essen4@hanmail.net</a></p>
+                <p style="margin-top: 20px;">Copyright © HMSB Alliance. All Rights Reserved.</p>
+            </div>
 
-        <br><br>
-        <p>Copyright © HMSB Alliance. All Rights Reserved.</p>
+            <div class="supervision-links">
+                <h4>공익위반사항 관리·감독기관 및 관련 사이트</h4>
+                <div class="link-grid">
+                    <a href="https://www.moef.go.kr" target="_blank" class="link-item">기획재정부</a>
+                    <a href="https://www.moel.go.kr" target="_blank" class="link-item">고용노동부</a>
+                    <a href="https://www.nts.go.kr" target="_blank" class="link-item">국세청 (공익제보)</a>
+                    <a href="https://www.socialenterprise.or.kr" target="_blank" class="link-item">한국사회적기업진흥원</a>
+                </div>
+                <p style="font-size: 0.75rem; color: #999; margin-top: 10px; line-height: 1.4;">
+                    * 본 법인은 공익위반사항을 관리·감독할 수 있는 기관의 홈페이지와 연결되어 있습니다.
+                </p>
+            </div>
+        </div>
     </footer>
 
 </body>
