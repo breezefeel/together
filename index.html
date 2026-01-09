@@ -47,31 +47,46 @@
         }
         .btn-donate:hover { background-color: #e68a30; transform: translateY(-2px); }
 
-        /* 메인 배너 */
+        /* [수정됨] 메인 배너 (Hero) - 따뜻하고 정돈된 카드 스타일 */
         .hero { 
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background: url('https://images.unsplash.com/photo-1585320262218-e7647042b155?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
             background-size: cover; background-position: center;
-            text-align: center; 
-            padding: 120px 20px; 
-            color: #ffffff; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center;
+            padding: 100px 20px;
         }
+        
+        /* 반투명 박스 (따뜻한 느낌의 컨테이너) */
+        .hero-card {
+            background: rgba(0, 0, 0, 0.5); /* 배경을 살짝 어둡게 */
+            backdrop-filter: blur(4px); /* 뒤 배경 흐림 효과 */
+            padding: 50px 40px;
+            border-radius: 20px; /* 둥근 모서리 */
+            text-align: center;
+            color: white;
+            max-width: 700px; /* 너비 제한으로 아담하게 */
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
         .hero h1 { 
             font-family: 'Gowun Dodum', sans-serif;
-            font-size: 2.4em; 
-            margin-bottom: 25px; 
-            text-shadow: 0 2px 15px rgba(0,0,0,0.4); 
+            font-size: 1.8rem; /* 제목 크기 축소 (2.4 -> 1.8) */
+            margin-bottom: 30px; 
+            color: #fff;
         }
+        
         .hero-desc { 
             font-family: 'Gowun Dodum', sans-serif;
-            font-size: 1.25em; 
-            line-height: 1.45; 
-            margin-bottom: 40px; 
-            max-width: 800px; 
-            opacity: 1; 
-            font-weight: 400; 
-            white-space: pre-line;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.5); 
+            font-size: 1.05rem; /* 본문 크기 축소 (1.25 -> 1.05) */
+            line-height: 1.7; 
+            font-weight: 300; 
+            color: #eee;
+        }
+
+        /* 문단 사이 구분선 */
+        .divider {
+            width: 40px; height: 1px; background: rgba(255,255,255,0.4);
+            margin: 20px auto;
         }
         
         /* 섹션 공통 */
@@ -170,12 +185,20 @@
             text-align: center; border-radius: 4px; font-size: 0.8rem; display: block;
         }
         .link-item:hover { background: #666; color: white; }
+        
+        .insta-link {
+            margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; display: inline-block;
+        }
+        .insta-link a {
+            color: #ff9f43; font-weight: bold; text-decoration: none; margin-left: 5px;
+        }
+        .insta-link a:hover { text-decoration: underline; color: #ffb168; }
 
         @media (max-width: 768px) {
             header { flex-direction: column; gap: 15px; padding: 20px; }
             nav { gap: 10px; flex-wrap: wrap; justify-content: center; }
-            .hero h1 { font-size: 1.8em; }
-            .hero-desc { font-size: 1.1em; padding: 0 10px; }
+            .hero-card { margin: 0 10px; padding: 30px 20px; }
+            .hero h1 { font-size: 1.5rem; }
             .footer-content { flex-direction: column; }
         }
     </style>
@@ -197,21 +220,30 @@
     </header>
 
     <section class="hero">
-        <h1>함께모아서로배움 사회적협동조합</h1>
-        <div class="hero-desc">
-            자주적·자립적·자치적인 협동의 힘으로<br>
-            마을 속에서 모두가 함께 배우고 돌보는 평생학습 공동체를 만들어갑니다.<br><br>
+        <div class="hero-card">
+            <h1>함께모아서로배움 사회적협동조합</h1>
             
-            100세 시대를 살아가는 모든 세대가 서로의 경험과 지혜를 나누며,<br>
-            배움이 돌봄이 되고 돌봄이 다시 배움이 되는<br>
-            순환型 마을교육의 문화를 일구고자 합니다.<br><br>
+            <div class="hero-desc">
+                자주적·자립적·자치적인 협동의 힘으로<br>
+                마을 속에서 모두가 함께 배우고 돌보는 평생학습 공동체를 만들어갑니다.
+                
+                <div class="divider"></div>
 
-            <strong>우리의 목표는</strong><br>
-            사람과 사람이 연결되고, 세대가 이어지며,<br>
-            누구나 자발적으로 참여하고 성장할 수 있는<br>
-            살기 좋은 행복한 마을의 롤모델을 만드는 것입니다.
+                100세 시대를 살아가는 모든 세대가 서로의 경험과 지혜를 나누며,<br>
+                배움이 돌봄이 되고 돌봄이 다시 배움이 되는<br>
+                순환型 마을교육의 문화를 일구고자 합니다.
+
+                <div class="divider"></div>
+
+                <strong>우리의 목표는</strong><br>
+                사람과 사람이 연결되고, 세대가 이어지며,<br>
+                누구나 자발적으로 참여하고 성장할 수 있는<br>
+                살기 좋은 행복한 마을의 롤모델을 만드는 것입니다.
+            </div>
+
+            <br>
+            <a href="#donate" class="btn-donate">조합원 가입 및 후원</a>
         </div>
-        <a href="#donate" class="btn-donate">조합원 가입 및 후원</a>
     </section>
 
     <section id="about">
@@ -400,6 +432,15 @@
                 <p>이사장: 윤수연 | 사업자등록번호: 793-82-00428</p>
                 <p>주소: 인천 계양구 양지로 169 2층 201호</p>
                 <p>이메일: <a href="mailto:essen4@hanmail.net" style="color:#bbb;">essen4@hanmail.net</a></p>
+                
+                <div class="insta-link">
+                    📸 <strong>인스타그램</strong>에서 활동내용을 보실 수 있습니다.
+                    <br>
+                    <a href="https://www.instagram.com/hammoseobae/" target="_blank">
+                        👉 @hammoseobae 바로가기
+                    </a>
+                </div>
+
                 <p style="margin-top: 20px;">Copyright © HMSB Alliance. All Rights Reserved.</p>
             </div>
 
