@@ -556,6 +556,7 @@
         <h1>체험 스케줄 · 스텝용</h1>
       </div>
       <div class="top-actions">
+        <button type="button" class="ghost" id="btn-sync" title="구글 시트 행사용 탭과 맞추기">동기화</button>
         <button type="button" class="ghost" id="btn-settings">설정</button>
         <button type="button" id="btn-export">내보내기</button>
       </div>
@@ -687,12 +688,18 @@
 (function () {
   var STORAGE_KEY = "rm_event_schedule_v1";
   var CFG_KEY = "rm_event_solapi_cfg_v1";
+  var SYNC_REV_KEY = "rm_event_schedule_rev_v1";
+  var GAS_URL = "https://script.google.com/macros/s/AKfycbwVJSc6rY5tcBSB1VaRi4DBEXGyUBr1ADFfs6QEA9Z9bu0G-0mdMAv374-MdPVYMnSaeQ/exec";
   var EVENT_DEFAULT_DATE = "2026-09-12";
   var PLACE_DEFAULT = "작전이음길 · 가현근린공원 안전 ZONE";
   var PROGRAM = "패시브 스트레칭";
 
   var state = loadState();
   var cfg = loadCfg();
+  var syncRevision = loadSyncRevision();
+  var syncPushTimer = null;
+  var syncBusy = false;
+  var syncSkipPush = false;
   var currentTime = null;
   var filter = "all";
   var toastTimer = null;
@@ -784,8 +791,25 @@
     }
   }
 
-  function saveState() {
+  function saveState(opts) {
+    opts = opts || {};
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!opts.skipSync && !syncSkipPush) queueSheetPush();
+  }
+
+  function loadSyncRevision() {
+    try {
+      return parseInt(localStorage.getItem(SYNC_REV_KEY) || "0", 10) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function saveSyncRevision(rev) {
+    syncRevision = parseInt(rev, 10) || 0;
+    try {
+      localStorage.setItem(SYNC_REV_KEY, String(syncRevision));
+    } catch (e) {}
   }
 
   function loadCfg() {
@@ -820,8 +844,194 @@
     };
   }
 
-  function saveCfg() {
+  function saveCfg(opts) {
+    opts = opts || {};
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    if (!opts.skipSync && !syncSkipPush) queueSheetPush();
+  }
+
+  function syncableCfg() {
+    return {
+      eventDate: cfg.eventDate || EVENT_DEFAULT_DATE,
+      place: cfg.place || PLACE_DEFAULT,
+      startTime: cfg.startTime || "10:00",
+      endTime: cfg.endTime || "16:45",
+      intervalMin: parseInt(cfg.intervalMin, 10) || 15,
+      breaks: normalizeBreaks(cfg.breaks)
+    };
+  }
+
+  function hasLocalBookings() {
+    var keys = Object.keys(state.bookings || {});
+    for (var i = 0; i < keys.length; i++) {
+      var b = state.bookings[keys[i]];
+      if (b && (b.name || b.phone || b.note)) return true;
+    }
+    return false;
+  }
+
+  function gasRequest(payload, forcePost) {
+    var body = JSON.stringify(payload || {});
+    var usePost = !!forcePost || encodeURIComponent(body).length > 1800;
+    var req = usePost
+      ? fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: body
+        })
+      : fetch(
+          GAS_URL + (GAS_URL.indexOf("?") >= 0 ? "&" : "?") + "data=" + encodeURIComponent(body)
+        );
+    return req
+      .then(function (res) {
+        return res.text();
+      })
+      .then(function (text) {
+        try {
+          return JSON.parse(text);
+        } catch (e1) {
+          return { ok: false, message: "시트 응답 오류" };
+        }
+      })
+      .catch(function () {
+        return { ok: false, message: "시트에 연결하지 못했습니다" };
+      });
+  }
+
+  function applyRemoteState(remoteState, revision) {
+    syncSkipPush = true;
+    try {
+      if (remoteState && remoteState.bookings && typeof remoteState.bookings === "object") {
+        state = { bookings: remoteState.bookings };
+        saveState({ skipSync: true });
+      }
+      if (remoteState && remoteState.cfg && typeof remoteState.cfg === "object") {
+        cfg = Object.assign(defaultCfg(), cfg, {
+          eventDate: remoteState.cfg.eventDate || cfg.eventDate,
+          place: remoteState.cfg.place || cfg.place,
+          startTime: remoteState.cfg.startTime || cfg.startTime,
+          endTime: remoteState.cfg.endTime || cfg.endTime,
+          intervalMin: parseInt(remoteState.cfg.intervalMin, 10) || cfg.intervalMin,
+          breaks: normalizeBreaks(remoteState.cfg.breaks)
+        });
+        saveCfg({ skipSync: true });
+      }
+      if (revision != null) saveSyncRevision(revision);
+      updateMeta();
+      renderBoard();
+    } finally {
+      syncSkipPush = false;
+    }
+  }
+
+  function queueSheetPush() {
+    if (syncPushTimer) clearTimeout(syncPushTimer);
+    syncPushTimer = setTimeout(function () {
+      syncPushTimer = null;
+      pushToSheet({ quiet: true });
+    }, 700);
+  }
+
+  function pushToSheet(opts) {
+    opts = opts || {};
+    if (syncBusy) {
+      queueSheetPush();
+      return Promise.resolve(null);
+    }
+    syncBusy = true;
+    var payload = {
+      action: "eventSchedulePush",
+      revision: syncRevision,
+      force: !!opts.force,
+      state: {
+        bookings: state.bookings || {},
+        cfg: syncableCfg()
+      }
+    };
+    return gasRequest(payload, true)
+      .then(function (res) {
+        syncBusy = false;
+        if (!res || res.ok === false) {
+          if (res && res.conflict && res.state) {
+            applyRemoteState(res.state, res.revision);
+            if (!opts.quiet) toast("다른 기기 내용으로 맞춤 · 다시 저장해 주세요");
+            return res;
+          }
+          if (!opts.quiet) {
+            var msg = (res && res.message) || "시트 저장 실패";
+            if (/unknown action/i.test(String(msg))) {
+              toast("Apps Script 재배포 후 동기화됩니다");
+            } else {
+              toast(msg);
+            }
+          }
+          return res;
+        }
+        if (res.revision != null) saveSyncRevision(res.revision);
+        if (!opts.quiet) toast("시트 동기화 완료");
+        return res;
+      })
+      .catch(function () {
+        syncBusy = false;
+        if (!opts.quiet) toast("시트 저장 실패");
+        return null;
+      });
+  }
+
+  function pullFromSheet(opts) {
+    opts = opts || {};
+    if (syncBusy && !opts.forceBusy) return Promise.resolve(null);
+    syncBusy = true;
+    return gasRequest({ action: "eventSchedulePull" }, false)
+      .then(function (res) {
+        syncBusy = false;
+        if (!res || res.ok === false) {
+          if (!opts.quiet) {
+            var msg = (res && res.message) || "시트 불러오기 실패";
+            if (/unknown action/i.test(String(msg))) {
+              toast("Apps Script를 다시 배포해 주세요");
+            } else {
+              toast(msg);
+            }
+          }
+          return res;
+        }
+        var remoteEmpty = !!res.empty;
+        var remoteRev = parseInt(res.revision, 10) || 0;
+        if (remoteEmpty) {
+          if (hasLocalBookings() || (cfg.place && cfg.place !== PLACE_DEFAULT) || cfg.eventDate !== EVENT_DEFAULT_DATE) {
+            return pushToSheet({ quiet: opts.quiet, force: true }).then(function () {
+              if (!opts.quiet) toast("이 기기 예약을 시트에 올렸습니다");
+              return res;
+            });
+          }
+          if (res.revision != null) saveSyncRevision(res.revision);
+          if (!opts.quiet) toast("시트에 예약이 없습니다");
+          return res;
+        }
+        if (opts.replace || remoteRev > syncRevision) {
+          applyRemoteState(res.state || { bookings: {} }, remoteRev);
+          if (!opts.quiet) toast("시트에서 불러옴");
+        } else if (res.revision != null && remoteRev === syncRevision) {
+          // 이미 최신
+        } else if (hasLocalBookings() && remoteRev < syncRevision) {
+          return pushToSheet({ quiet: true, force: true });
+        }
+        return res;
+      })
+      .catch(function () {
+        syncBusy = false;
+        if (!opts.quiet) toast("시트 불러오기 실패");
+        return null;
+      });
+  }
+
+  function manualSync() {
+    toast("시트 동기화 중…");
+    return pullFromSheet({ quiet: false, replace: true }).then(function (res) {
+      if (res && res.ok !== false && !res.empty) return res;
+      return pushToSheet({ quiet: false, force: true });
+    });
   }
 
   function placeStr() {
@@ -1799,6 +2009,9 @@
   document.getElementById("drawer-bg").addEventListener("click", closeDrawer);
   document.getElementById("drawer-close").addEventListener("click", closeDrawer);
   document.getElementById("btn-settings").addEventListener("click", openSettingsOnly);
+  document.getElementById("btn-sync").addEventListener("click", function () {
+    manualSync();
+  });
   document.getElementById("btn-export").addEventListener("click", exportCsv);
   document.getElementById("btn-clear").addEventListener("click", clearBooking);
   document.getElementById("btn-save").addEventListener("click", function () {
@@ -1856,7 +2069,23 @@
     });
   });
   if (typeof bindPhoneAutoFocus === "function") bindPhoneAutoFocus();
+  updateMeta();
   renderBoard();
+  pullFromSheet({ quiet: true, replace: false });
+  setInterval(function () {
+    if (document.hidden) return;
+    var active = document.activeElement;
+    var board = document.getElementById("board");
+    if (active && board && board.contains(active) && active.matches("input, select, textarea")) return;
+    pullFromSheet({ quiet: true, replace: false });
+  }, 45 * 1000);
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) return;
+    var active = document.activeElement;
+    var board = document.getElementById("board");
+    if (active && board && board.contains(active) && active.matches("input, select, textarea")) return;
+    pullFromSheet({ quiet: true, replace: false });
+  });
   setInterval(function () {
     var active = document.activeElement;
     var board = document.getElementById("board");
