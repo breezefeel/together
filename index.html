@@ -451,6 +451,52 @@
   }
   .toast.on { transform: translateX(-50%) translateY(0); }
 
+  .sync-notice {
+    position: fixed;
+    left: 12px; right: 12px; bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 85;
+    display: none;
+    background: #111;
+    color: #F6F3EC;
+    border-radius: 14px;
+    padding: 12px 12px 12px 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.28);
+    gap: 10px;
+    align-items: center;
+  }
+  .sync-notice.on {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .sync-notice-text {
+    flex: 1 1 160px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+  }
+  .sync-notice-text b { color: var(--gold-2); }
+  .sync-notice-actions {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+  .sync-notice-actions button {
+    border: 0;
+    border-radius: 999px;
+    padding: 9px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: inherit;
+  }
+  .sync-notice-actions .apply {
+    background: var(--gold);
+    color: #111;
+  }
+  .sync-notice-actions .dismiss {
+    background: rgba(255,255,255,.12);
+    color: #F6F3EC;
+  }
+
   .tabs {
     display: flex; gap: 6px;
     margin-bottom: 12px;
@@ -683,6 +729,15 @@
   </aside>
 
   <div class="toast" id="toast" role="status"></div>
+  <div class="sync-notice" id="sync-notice" role="status" aria-live="polite">
+    <div class="sync-notice-text" id="sync-notice-text">
+      다른 기기에 <b>최신 예약</b>이 있습니다
+    </div>
+    <div class="sync-notice-actions">
+      <button type="button" class="apply" id="sync-notice-apply">불러오기</button>
+      <button type="button" class="dismiss" id="sync-notice-dismiss">닫기</button>
+    </div>
+  </div>
 
 <script>
 (function () {
@@ -700,6 +755,11 @@
   var syncPushTimer = null;
   var syncBusy = false;
   var syncSkipPush = false;
+  var syncCheckBusy = false;
+  var syncNoticeRes = null;
+  var lastActiveAt = Date.now();
+  var resumeCheckCooldownUntil = 0;
+  var IDLE_MS = 60 * 1000;
   var currentTime = null;
   var filter = "all";
   var toastTimer = null;
@@ -929,7 +989,70 @@
     syncPushTimer = setTimeout(function () {
       syncPushTimer = null;
       pushToSheet({ quiet: true });
-    }, 700);
+    }, 400);
+  }
+
+  function hideSyncNotice() {
+    syncNoticeRes = null;
+    var el = document.getElementById("sync-notice");
+    if (el) el.classList.remove("on");
+  }
+
+  function showSyncNotice(res) {
+    syncNoticeRes = res || null;
+    var el = document.getElementById("sync-notice");
+    var text = document.getElementById("sync-notice-text");
+    if (text) {
+      text.innerHTML = "다른 기기에 <b>최신 예약</b>이 있습니다. 불러올까요?";
+    }
+    if (el) el.classList.add("on");
+    toast("최신 데이터 있음 · 동기화 알림을 확인하세요");
+  }
+
+  function applySyncNotice() {
+    if (!syncNoticeRes || !syncNoticeRes.state) {
+      hideSyncNotice();
+      return pullFromSheet({ quiet: false, replace: true });
+    }
+    var rev = parseInt(syncNoticeRes.revision, 10) || 0;
+    applyRemoteState(syncNoticeRes.state, rev);
+    hideSyncNotice();
+    toast("최신 예약으로 맞춤");
+    return Promise.resolve(syncNoticeRes);
+  }
+
+  function markUserActive() {
+    var now = Date.now();
+    var wasIdle = now - lastActiveAt >= IDLE_MS;
+    lastActiveAt = now;
+    if (wasIdle) maybeCheckRemoteAfterIdle();
+  }
+
+  function maybeCheckRemoteAfterIdle() {
+    if (Date.now() < resumeCheckCooldownUntil) return;
+    if (syncNoticeRes) return;
+    if (syncBusy || syncCheckBusy) return;
+    resumeCheckCooldownUntil = Date.now() + 4000;
+    checkRemoteForUpdate();
+  }
+
+  function checkRemoteForUpdate() {
+    if (syncCheckBusy || syncBusy) return Promise.resolve(null);
+    syncCheckBusy = true;
+    return gasRequest({ action: "eventSchedulePull" }, false)
+      .then(function (res) {
+        syncCheckBusy = false;
+        if (!res || res.ok === false) return res;
+        var remoteRev = parseInt(res.revision, 10) || 0;
+        if (!res.empty && remoteRev > syncRevision) {
+          showSyncNotice(res);
+        }
+        return res;
+      })
+      .catch(function () {
+        syncCheckBusy = false;
+        return null;
+      });
   }
 
   function pushToSheet(opts) {
@@ -953,8 +1076,8 @@
         syncBusy = false;
         if (!res || res.ok === false) {
           if (res && res.conflict && res.state) {
-            applyRemoteState(res.state, res.revision);
-            if (!opts.quiet) toast("다른 기기 내용으로 맞춤 · 다시 저장해 주세요");
+            showSyncNotice(res);
+            if (!opts.quiet) toast("다른 기기 내용이 더 최신입니다");
             return res;
           }
           if (!opts.quiet) {
@@ -968,6 +1091,7 @@
           return res;
         }
         if (res.revision != null) saveSyncRevision(res.revision);
+        hideSyncNotice();
         if (!opts.quiet) toast("시트 동기화 완료");
         return res;
       })
@@ -1011,6 +1135,7 @@
         }
         if (opts.replace || remoteRev > syncRevision) {
           applyRemoteState(res.state || { bookings: {} }, remoteRev);
+          hideSyncNotice();
           if (!opts.quiet) toast("시트에서 불러옴");
         } else if (res.revision != null && remoteRev === syncRevision) {
           // 이미 최신
@@ -1028,6 +1153,7 @@
 
   function manualSync() {
     toast("시트 동기화 중…");
+    hideSyncNotice();
     return pullFromSheet({ quiet: false, replace: true }).then(function (res) {
       if (res && res.ok !== false && !res.empty) return res;
       return pushToSheet({ quiet: false, force: true });
@@ -2012,6 +2138,13 @@
   document.getElementById("btn-sync").addEventListener("click", function () {
     manualSync();
   });
+  document.getElementById("sync-notice-apply").addEventListener("click", function () {
+    applySyncNotice();
+  });
+  document.getElementById("sync-notice-dismiss").addEventListener("click", function () {
+    hideSyncNotice();
+    resumeCheckCooldownUntil = Date.now() + IDLE_MS;
+  });
   document.getElementById("btn-export").addEventListener("click", exportCsv);
   document.getElementById("btn-clear").addEventListener("click", clearBooking);
   document.getElementById("btn-save").addEventListener("click", function () {
@@ -2072,20 +2205,31 @@
   updateMeta();
   renderBoard();
   pullFromSheet({ quiet: true, replace: false });
-  setInterval(function () {
-    if (document.hidden) return;
-    var active = document.activeElement;
-    var board = document.getElementById("board");
-    if (active && board && board.contains(active) && active.matches("input, select, textarea")) return;
-    pullFromSheet({ quiet: true, replace: false });
-  }, 45 * 1000);
-  document.addEventListener("visibilitychange", function () {
-    if (document.hidden) return;
-    var active = document.activeElement;
-    var board = document.getElementById("board");
-    if (active && board && board.contains(active) && active.matches("input, select, textarea")) return;
-    pullFromSheet({ quiet: true, replace: false });
+
+  ["pointerdown", "touchstart", "keydown", "focusin"].forEach(function (type) {
+    document.addEventListener(
+      type,
+      function (e) {
+        markUserActive(e);
+      },
+      { capture: true, passive: true }
+    );
   });
+  window.addEventListener(
+    "scroll",
+    function (e) {
+      markUserActive(e);
+    },
+    { capture: true, passive: true }
+  );
+  document.addEventListener(
+    "scroll",
+    function (e) {
+      markUserActive(e);
+    },
+    { capture: true, passive: true }
+  );
+
   setInterval(function () {
     var active = document.activeElement;
     var board = document.getElementById("board");
