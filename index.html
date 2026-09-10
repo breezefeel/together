@@ -94,7 +94,7 @@
   }
   .stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(52px, auto));
+    grid-template-columns: repeat(3, minmax(52px, auto));
     gap: 6px;
     margin-left: auto;
   }
@@ -177,7 +177,7 @@
   }
   .inline-phone {
     display: grid;
-    grid-template-columns: 30px 50px 50px;
+    grid-template-columns: 28px 52px 52px;
     gap: 3px;
     flex: 0 0 auto;
   }
@@ -202,10 +202,29 @@
     padding: 0 2px;
   }
   .inline-phone input[data-field="phone1"] {
-    font-size: 10px;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 12px;
     font-weight: 800;
     color: var(--mute);
-    padding: 0 1px;
+    padding: 0;
+    pointer-events: none;
+  }
+  .inline-phone input[data-field="phone1"]:focus {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .slot:not(.has-guest) .memo-input {
+    height: var(--fields-h);
+  }
+  .phone-parts input#f-phone1 {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--mute);
+    font-weight: 800;
+    pointer-events: none;
   }
   .inline-name {
     flex: 1 1 0;
@@ -519,10 +538,8 @@
       <button type="button" class="on" data-filter="all">전체</button>
       <button type="button" data-filter="open">빈 칸</button>
       <button type="button" data-filter="booked">예약됨</button>
-      <button type="button" data-filter="soon">곧 시작</button>
     </div>
     <section class="stats" aria-label="현황">
-      <div class="stat"><b id="st-total">0</b><span>전체 칸</span></div>
       <div class="stat"><b id="st-booked">0</b><span>예약</span></div>
       <div class="stat"><b id="st-scheduled">0</b><span>알림 예약</span></div>
       <div class="stat"><b id="st-open">0</b><span>빈 칸</span></div>
@@ -546,7 +563,7 @@
       <div class="field">
         <label for="f-phone1">전화번호</label>
         <div class="phone-parts">
-          <input id="f-phone1" type="tel" inputmode="numeric" maxlength="3" value="010" aria-label="전화번호 앞자리">
+          <input id="f-phone1" type="tel" inputmode="numeric" maxlength="3" value="010" readonly tabindex="-1" aria-label="전화번호 앞자리">
           <input id="f-phone2" type="tel" inputmode="numeric" maxlength="4" placeholder="1234" aria-label="전화번호 가운데">
           <input id="f-phone3" type="tel" inputmode="numeric" maxlength="4" placeholder="5678" aria-label="전화번호 뒷자리">
         </div>
@@ -581,20 +598,6 @@
     </div>
 
 
-    <div class="panel" id="panel-memo">
-      <div class="field">
-        <label for="m-time">시간</label>
-        <input id="m-time" readonly>
-      </div>
-      <div class="field">
-        <label for="m-note">메모</label>
-        <textarea id="m-note" placeholder="결제·대기·특이사항 등"></textarea>
-      </div>
-      <div class="row-btns">
-        <button type="button" class="btn soft" id="btn-memo-clear">메모 지우기</button>
-        <button type="button" class="btn gold" id="btn-memo-save">메모 저장</button>
-      </div>
-    </div>
 
     <div class="panel" id="panel-cfg">
       <div class="cfg-section">
@@ -633,36 +636,6 @@
           <button type="button" class="btn soft" id="btn-break-clear">전체 삭제</button>
         </div>
         <p class="slot-preview" id="slot-preview"></p>
-      </div>
-
-      <div class="cfg-section">
-        <h3>알림톡</h3>
-        <p class="tpl-meta" style="margin-top:0">
-          템플릿 ID · 카카오 채널 pfId는 등록돼 있습니다. 실제 발송에는 API Key · Secret만 더 있으면 됩니다.
-        </p>
-        <div class="field">
-          <label for="c-tplid">솔라피 알림톡 템플릿 ID</label>
-          <input id="c-tplid" type="text" autocomplete="off" placeholder="예: KA01TP…">
-        </div>
-        <details style="margin-top:4px" open>
-          <summary style="cursor:pointer;font-size:12px;font-weight:800;color:var(--mute)">발송용 API 설정</summary>
-          <div class="field" style="margin-top:8px">
-            <label for="c-apikey">API Key</label>
-            <input id="c-apikey" type="password" autocomplete="off" placeholder="솔라피 API Key">
-          </div>
-          <div class="field">
-            <label for="c-apisecret">API Secret</label>
-            <input id="c-apisecret" type="password" autocomplete="off" placeholder="솔라피 API Secret">
-          </div>
-          <div class="field">
-            <label for="c-pfid">카카오 채널 pfId</label>
-            <input id="c-pfid" type="text" autocomplete="off" placeholder="KA01PF…">
-          </div>
-          <div class="field">
-            <label for="c-from">대체문자 발신번호</label>
-            <input id="c-from" type="tel" inputmode="numeric" placeholder="등록된 발신번호">
-          </div>
-        </details>
       </div>
 
       <div class="row-btns">
@@ -937,18 +910,10 @@
   }
 
   function bindPhoneAutoFocus() {
-    var p1 = document.getElementById("f-phone1");
     var p2 = document.getElementById("f-phone2");
     var p3 = document.getElementById("f-phone3");
     var name = document.getElementById("f-name");
 
-    p1.addEventListener("input", function () {
-      onlyDigitsInput(p1, 3);
-      if (p1.value.length >= 3) {
-        p2.focus();
-        p2.select();
-      }
-    });
     p2.addEventListener("input", function () {
       var v = onlyDigitsInput(p2, 4);
       if (v.length >= 4) {
@@ -962,9 +927,6 @@
         name.focus();
         name.select();
       }
-    });
-    p2.addEventListener("keydown", function (e) {
-      if (e.key === "Backspace" && !p2.value) p1.focus();
     });
     p3.addEventListener("keydown", function (e) {
       if (e.key === "Backspace" && !p3.value) p2.focus();
@@ -1167,9 +1129,8 @@
     var side = row.querySelector(".slot-side");
     if (!side) return;
     var oldStatus = side.querySelector(".badge-select, .badge.open");
-    var next;
     if (b && b.name) {
-      next = document.createElement("select");
+      var next = document.createElement("select");
       next.className = "badge-select " + st.key;
       next.setAttribute("aria-label", time + " 상태");
       next.innerHTML =
@@ -1181,13 +1142,11 @@
       next.addEventListener("change", function () {
         setBookingStatus(time, next.value);
       });
-    } else {
-      next = document.createElement("span");
-      next.className = "badge open";
-      next.textContent = "빈 칸";
+      if (oldStatus) side.replaceChild(next, oldStatus);
+      else side.insertBefore(next, side.firstChild);
+    } else if (oldStatus) {
+      oldStatus.remove();
     }
-    if (oldStatus) side.replaceChild(next, oldStatus);
-    else side.insertBefore(next, side.firstChild);
     row.classList.toggle("has-guest", !!(b && b.name));
     row.classList.toggle("has-memo", !!(b && String(b.note || "").trim()));
   }
@@ -1254,16 +1213,11 @@
   }
 
   function bindInlinePhone(row) {
-    var p1 = row.querySelector('[data-field="phone1"]');
     var p2 = row.querySelector('[data-field="phone2"]');
     var p3 = row.querySelector('[data-field="phone3"]');
     var name = row.querySelector('[data-field="name"]');
-    if (!p1 || !p2 || !p3 || !name) return;
+    if (!p2 || !p3 || !name) return;
 
-    p1.addEventListener("input", function () {
-      onlyDigitsInput(p1, 3);
-      if (p1.value.length >= 3) { p2.focus(); p2.select(); }
-    });
     p2.addEventListener("input", function () {
       var v = onlyDigitsInput(p2, 4);
       if (v.length >= 4) { p3.focus(); p3.select(); }
@@ -1271,9 +1225,6 @@
     p3.addEventListener("input", function () {
       var v = onlyDigitsInput(p3, 4);
       if (v.length >= 4) { name.focus(); name.select(); }
-    });
-    p2.addEventListener("keydown", function (e) {
-      if (e.key === "Backspace" && !p2.value) p1.focus();
     });
     p3.addEventListener("keydown", function (e) {
       if (e.key === "Backspace" && !p3.value) p2.focus();
@@ -1286,7 +1237,7 @@
       }
       if (e.key === "Backspace" && !name.value) p3.focus();
     });
-    [p1, p2, p3, name].forEach(function (el) {
+    [p2, p3, name].forEach(function (el) {
       el.addEventListener("blur", function () {
         setTimeout(function () {
           var active = document.activeElement;
@@ -1329,7 +1280,6 @@
       booked++;
       if (b.alimStatus === "scheduled" || b.alimStatus === "sent") scheduled++;
     });
-    document.getElementById("st-total").textContent = String(all.length);
     document.getElementById("st-booked").textContent = String(booked);
     document.getElementById("st-scheduled").textContent = String(scheduled);
     document.getElementById("st-open").textContent = String(open);
@@ -1355,7 +1305,6 @@
       var st = statusLabel(b);
       if (filter === "open" && b && b.name) return;
       if (filter === "booked" && !(b && b.name && normalizeStatus(b.status) === "booked")) return;
-      if (filter === "soon" && !isSoon(t)) return;
 
       var parts = splitPhone((b && b.phone) || "010");
       var row = document.createElement("div");
@@ -1372,7 +1321,7 @@
         '<div class="time" title="' + (b && b.name ? "드래그해서 시간 이동" : "") + '">' + t + "</div>" +
         '<div class="slot-fields">' +
           '<div class="inline-phone">' +
-            '<input data-field="phone1" type="tel" inputmode="numeric" maxlength="3" value="' + escapeHtml(parts.p1 || "010") + '" aria-label="' + t + ' 전화 앞자리">' +
+            '<input data-field="phone1" type="tel" inputmode="numeric" maxlength="3" value="010" readonly tabindex="-1" aria-label="' + t + ' 전화 앞자리">' +
             '<input data-field="phone2" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p2 || "") + '" placeholder="1234" aria-label="' + t + ' 전화 가운데">' +
             '<input data-field="phone3" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p3 || "") + '" placeholder="5678" aria-label="' + t + ' 전화 뒷자리">' +
           "</div>" +
@@ -1387,26 +1336,6 @@
 
       var side = document.createElement("div");
       side.className = "slot-side";
-
-      var statusEl;
-      if (b && b.name) {
-        statusEl = document.createElement("select");
-        statusEl.className = "badge-select " + st.key;
-        statusEl.setAttribute("aria-label", t + " 상태");
-        statusEl.innerHTML =
-          '<option value="booked">예약</option>' +
-          '<option value="done">완료</option>' +
-          '<option value="cancel">취소</option>' +
-          '<option value="noshow">노쇼</option>';
-        statusEl.value = normalizeStatus(b.status);
-        statusEl.addEventListener("change", function () {
-          setBookingStatus(t, statusEl.value);
-        });
-      } else {
-        statusEl = document.createElement("span");
-        statusEl.className = "badge open";
-        statusEl.textContent = "빈 칸";
-      }
 
       var noteVal = (b && b.note) || "";
       var memoInput = document.createElement("input");
@@ -1429,7 +1358,21 @@
         }
       });
 
-      side.appendChild(statusEl);
+      if (b && b.name) {
+        var statusEl = document.createElement("select");
+        statusEl.className = "badge-select " + st.key;
+        statusEl.setAttribute("aria-label", t + " 상태");
+        statusEl.innerHTML =
+          '<option value="booked">예약</option>' +
+          '<option value="done">완료</option>' +
+          '<option value="cancel">취소</option>' +
+          '<option value="noshow">노쇼</option>';
+        statusEl.value = normalizeStatus(b.status);
+        statusEl.addEventListener("change", function () {
+          setBookingStatus(t, statusEl.value);
+        });
+        side.appendChild(statusEl);
+      }
       side.appendChild(memoInput);
       row.appendChild(main);
       row.appendChild(side);
@@ -1474,60 +1417,12 @@
   }
 
   function setPanel(name) {
-    ["edit", "cfg", "memo"].forEach(function (p) {
+    ["edit", "cfg"].forEach(function (p) {
       document.getElementById("panel-" + p).classList.toggle("on", p === name);
     });
     if (name === "cfg") fillCfgForm();
   }
 
-  function openMemo(time) {
-    currentTime = time;
-    var b = booking(time) || {};
-    document.getElementById("drawer-title").textContent = time + " 메모";
-    document.getElementById("m-time").value = time;
-    document.getElementById("m-note").value = b.note || "";
-    openDrawer("memo");
-    setTimeout(function () {
-      var el = document.getElementById("m-note");
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-    }, 50);
-  }
-
-  function saveMemoOnly() {
-    var time = currentTime || document.getElementById("m-time").value;
-    if (!time) return;
-    var note = document.getElementById("m-note").value.trim();
-    var prev = booking(time) || {};
-    if (!note && !prev.name) {
-      delete state.bookings[time];
-      saveState();
-      renderBoard();
-      toast(time + " 메모 삭제");
-      closeDrawer();
-      return;
-    }
-    state.bookings[time] = {
-      name: prev.name || "",
-      phone: prev.phone || "",
-      status: normalizeStatus(prev.status || "booked"),
-      note: note,
-      updatedAt: new Date().toISOString(),
-      alimStatus: prev.alimStatus || "",
-      alimAt: prev.alimAt || "",
-      alimGroupId: prev.alimGroupId || "",
-      alimError: prev.alimError || ""
-    };
-    saveState();
-    renderBoard();
-    toast(note ? (time + " 메모 저장") : (time + " 메모 삭제"));
-    closeDrawer();
-  }
-
-  function clearMemoOnly() {
-    document.getElementById("m-note").value = "";
-    saveMemoOnly();
-  }
 
   function openEdit(time) {
     currentTime = time;
@@ -1552,7 +1447,7 @@
       line.className = "status-line warn";
       line.textContent = cfgReady()
         ? "알림톡 미예약 · 저장 시 시작 5분 전으로 예약됩니다."
-        : "알림톡 API 미설정 · 예약만 저장됩니다.";
+        : "알림톡은 code.gs 연동 후 사용할 수 있습니다.";
     }
     openDrawer("edit");
     setTimeout(function () {
@@ -1577,11 +1472,6 @@
       return { start: b.start, end: b.end };
     });
     renderBreakList();
-    document.getElementById("c-tplid").value = cfg.templateId || "";
-    document.getElementById("c-apikey").value = cfg.apiKey || "";
-    document.getElementById("c-apisecret").value = cfg.apiSecret || "";
-    document.getElementById("c-pfid").value = cfg.pfId || "";
-    document.getElementById("c-from").value = cfg.from || "";
   }
 
   function readCfgForm() {
@@ -1607,11 +1497,6 @@
     cfg.endTime = end;
     cfg.intervalMin = interval;
     cfg.breaks = normalizeBreaks(draftBreaks);
-    cfg.templateId = document.getElementById("c-tplid").value.trim();
-    cfg.apiKey = document.getElementById("c-apikey").value.trim();
-    cfg.apiSecret = document.getElementById("c-apisecret").value.trim();
-    cfg.pfId = document.getElementById("c-pfid").value.trim();
-    cfg.from = digitsPhone(document.getElementById("c-from").value);
     return true;
   }
 
@@ -1719,7 +1604,7 @@
     var b = booking(time);
     if (!b || !b.name) return Promise.reject(new Error("예약 정보가 없습니다."));
     if (!cfgReady()) {
-      toast(time + " 저장됨 · 알림톡 API Key·Secret을 설정에서 입력");
+      toast(time + " 저장됨 · 알림톡은 code.gs 연동 후 발송됩니다");
       return Promise.resolve(null);
     }
 
@@ -1833,8 +1718,6 @@
   document.getElementById("btn-settings").addEventListener("click", openSettingsOnly);
   document.getElementById("btn-export").addEventListener("click", exportCsv);
   document.getElementById("btn-clear").addEventListener("click", clearBooking);
-  document.getElementById("btn-memo-save").addEventListener("click", saveMemoOnly);
-  document.getElementById("btn-memo-clear").addEventListener("click", clearMemoOnly);
   document.getElementById("btn-save").addEventListener("click", function () {
     saveBooking({ schedule: true, immediate: false });
   });
@@ -1852,7 +1735,7 @@
     closeDrawer();
   });
   document.getElementById("btn-cfg-reset").addEventListener("click", function () {
-    if (!confirm("운영 시간·쉬는 시간을 기본값(10:00–16:45 · 15분)으로 되돌릴까요?\n알림톡 ID는 유지됩니다.")) return;
+    if (!confirm("운영 시간·쉬는 시간을 기본값(10:00–16:45 · 15분)으로 되돌릴까요?")) return;
     var keep = {
       apiKey: cfg.apiKey,
       apiSecret: cfg.apiSecret,
