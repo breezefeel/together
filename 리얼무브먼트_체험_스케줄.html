@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>리얼무브먼트 · 체험 스케줄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #111111;
+    --paper: #F7F4EE;
+    --gold: #C4A056;
+    --gold-2: #D9C28A;
+    --line: #E2DCD2;
+    --mute: #6F6A63;
+    --ok: #1F6B4A;
+    --warn: #B45309;
+    --danger: #B91C1C;
+    --slot: #FFFFFF;
+    --slot-alt: #FBF9F5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #E8E3D8;
+    color: var(--ink);
+    font-family: "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    min-height: 100%;
+  }
+  button, input { font-family: inherit; }
+  button { cursor: pointer; }
+  .serif { font-family: "Cormorant Garamond", Georgia, serif; }
+
+  .top {
+    position: sticky; top: 0; z-index: 40;
+    background: #000; color: #F6F3EC;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid rgba(212,162,86,.35);
+  }
+  .top-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .brand-en {
+    font-size: 15px; font-weight: 700; letter-spacing: .06em; color: var(--gold-2);
+  }
+  .top h1 {
+    font-size: 15px; font-weight: 900; letter-spacing: -.03em; line-height: 1.2;
+  }
+  .top .meta {
+    width: 100%;
+    display: flex; flex-wrap: wrap; gap: 6px 12px;
+    margin-top: 6px;
+    font-size: 11px; font-weight: 600; color: #B8B2A6;
+  }
+  .top .meta strong { color: #F3F0E8; font-weight: 800; }
+  .top-actions {
+    margin-left: auto;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .top-actions button {
+    border: 0; border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 12px; font-weight: 800;
+    background: var(--gold); color: #000;
+  }
+  .top-actions button.ghost {
+    background: transparent; color: var(--gold-2);
+    box-shadow: inset 0 0 0 1px rgba(217,194,138,.45);
+  }
+
+  .ctrl-bar {
+    display: flex;
+    flex-wrap: wrap-reverse;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px 0;
+  }
+  .filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filters button {
+    border: 0; border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px; font-weight: 800;
+    background: #EFEBE3; color: var(--mute);
+  }
+  .filters button.on {
+    background: #111; color: #fff;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(52px, auto));
+    gap: 6px;
+    margin-left: auto;
+  }
+  .stat {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+    min-width: 52px;
+  }
+  .stat b {
+    display: block;
+    font-size: 16px; font-weight: 900; letter-spacing: -.03em;
+  }
+  .stat span {
+    font-size: 9px; font-weight: 700; color: var(--mute);
+    white-space: nowrap;
+  }
+
+  .board {
+    padding: 10px 12px 120px;
+    display: grid;
+    gap: 6px;
+  }
+  .slot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48px;
+    gap: 6px;
+    align-items: center;
+    background: var(--slot);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 7px 8px;
+    text-align: left;
+    width: 100%;
+    --side-h: 20px;
+    --side-gap: 3px;
+    --fields-h: calc(var(--side-h) * 2 + var(--side-gap));
+  }
+  .slot:nth-child(even) { background: var(--slot-alt); }
+  .slot-side {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--side-gap);
+    width: 48px;
+    flex-shrink: 0;
+  }
+  .slot-main {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    width: 100%;
+    color: inherit;
+    min-width: 0;
+  }
+  .slot .time {
+    font-size: 14px; font-weight: 900; letter-spacing: -.03em;
+    user-select: none;
+    line-height: 1.1;
+  }
+  .slot.has-guest .time {
+    cursor: grab;
+    touch-action: none;
+  }
+  .slot.has-guest .time.is-dragging { cursor: grabbing; opacity: .7; }
+  .slot-fields {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    align-items: center;
+    min-width: 0;
+    width: 100%;
+  }
+  .inline-phone {
+    display: grid;
+    grid-template-columns: 30px 50px 50px;
+    gap: 3px;
+    flex: 0 0 auto;
+  }
+  .inline-phone input,
+  .inline-name {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    height: var(--fields-h);
+    padding: 0 5px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--ink);
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .inline-phone input {
+    text-align: center;
+    letter-spacing: .02em;
+    font-variant-numeric: tabular-nums;
+    padding: 0 2px;
+  }
+  .inline-phone input[data-field="phone1"] {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--mute);
+    padding: 0 1px;
+  }
+  .inline-name {
+    flex: 1 1 0;
+    min-width: 52px;
+    text-align: left;
+    padding: 0 8px;
+  }
+  .memo-input {
+    width: 100%;
+    height: var(--side-h);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #EFEBE3;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 800;
+    font-family: inherit;
+    color: #A8A29A;
+    text-align: center;
+    box-sizing: border-box;
+  }
+  .memo-input.has-value {
+    background: #111;
+    color: var(--gold-2);
+    border-color: #111;
+  }
+  .inline-phone input:focus,
+  .inline-name:focus,
+  .memo-input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(196,160,86,.25);
+  }
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 100%;
+    height: var(--side-h);
+    min-width: 0;
+    padding: 0 4px;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 800;
+    background: #EFEBE3; color: var(--mute);
+    box-sizing: border-box;
+  }
+  .badge.open { background: #EFEBE3; color: #6F6A63; }
+  .badge.booked { background: #DBEAFE; color: #1D4ED8; }
+  .badge.scheduled { background: #FEF3C7; color: #B45309; }
+  .badge.sent { background: #DCFCE7; color: #166534; }
+  .badge.done { background: #111; color: #fff; }
+  .badge.cancel { background: #FEE2E2; color: #B91C1C; }
+  .badge.noshow { background: #FFEDD5; color: #C2410C; }
+  .badge-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    width: 100%;
+    height: var(--side-h);
+    min-width: 0;
+    padding: 0 12px 0 4px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 7px) 50%, calc(100% - 4px) 50%;
+    background-size: 3px 3px, 3px 3px;
+    background-repeat: no-repeat;
+  }
+  .badge-select.booked { background-color: #DBEAFE; color: #1D4ED8; }
+  .badge-select.done { background-color: #111; color: #fff; }
+  .badge-select.cancel { background-color: #FEE2E2; color: #B91C1C; }
+  .badge-select.noshow { background-color: #FFEDD5; color: #C2410C; }
+  .slot.drag-source { opacity: .42; }
+  .slot.drop-target {
+    box-shadow: inset 0 0 0 2px var(--gold);
+    background: #FFF8E8 !important;
+  }
+  .drag-ghost {
+    position: fixed;
+    z-index: 90;
+    pointer-events: none;
+    background: #111;
+    color: #F6F3EC;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    box-shadow: 0 10px 28px rgba(0,0,0,.28);
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: translate(-12px, -12px);
+  }
+
+  .drawer-bg {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.45);
+    display: none;
+  }
+  .drawer-bg.on { display: block; }
+  .drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: var(--paper);
+    border-radius: 18px 18px 0 0;
+    padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
+    max-height: min(92vh, 720px);
+    overflow: auto;
+    transform: translateY(110%);
+    transition: transform .22s ease;
+  }
+  .drawer.on { transform: translateY(0); }
+  .drawer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 12px;
+  }
+  .drawer-head h2 {
+    font-size: 18px; font-weight: 900; letter-spacing: -.03em;
+  }
+  .drawer-head button {
+    border: 0; background: transparent;
+    font-size: 22px; line-height: 1; color: var(--mute); padding: 4px 8px;
+  }
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: block;
+    font-size: 11px; font-weight: 800; color: var(--mute);
+    margin-bottom: 5px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 11px 12px;
+    font-size: 15px; font-weight: 600;
+  }
+  .field textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-size: 13px; line-height: 1.55;
+  }
+  .hint {
+    margin-top: 5px;
+    font-size: 11px; color: var(--mute); line-height: 1.45;
+  }
+  .row-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .row-btns.triple { grid-template-columns: 1fr 1fr 1fr; }
+  .btn {
+    border: 0; border-radius: 8px;
+    padding: 12px 10px;
+    font-size: 13px; font-weight: 900;
+    background: #111; color: #fff;
+  }
+  .btn.gold { background: var(--gold); color: #000; }
+  .btn.soft { background: #EFEBE3; color: #111; }
+  .btn.danger { background: #FEE2E2; color: var(--danger); }
+  .preview {
+    margin-top: 8px;
+    background: #111;
+    color: #F3F0E8;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px; line-height: 1.55; white-space: pre-wrap;
+  }
+  .preview .kicker {
+    color: var(--gold-2);
+    font-size: 10px; font-weight: 800; letter-spacing: .08em;
+    margin-bottom: 6px;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; z-index: 80;
+    transform: translateX(-50%) translateY(120%);
+    background: #111; color: #fff;
+    padding: 10px 14px; border-radius: 999px;
+    font-size: 12px; font-weight: 700;
+    transition: transform .2s ease;
+    max-width: calc(100% - 32px);
+    text-align: center;
+  }
+  .toast.on { transform: translateX(-50%) translateY(0); }
+
+  .tabs {
+    display: flex; gap: 6px;
+    margin-bottom: 12px;
+  }
+  .tabs button {
+    flex: 1;
+    border: 0; border-radius: 8px;
+    padding: 9px 8px;
+    font-size: 12px; font-weight: 800;
+    background: #EFEBE3; color: var(--mute);
+  }
+  .tabs button.on { background: #111; color: #fff; }
+  .panel { display: none; }
+  .panel.on { display: block; }
+
+  .tpl-box {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px; line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .tpl-meta {
+    margin: 8px 0 10px;
+    font-size: 11px; color: var(--mute); line-height: 1.5;
+  }
+  .status-line {
+    margin-top: 8px;
+    font-size: 12px; font-weight: 700; color: var(--ok);
+  }
+  .status-line.warn { color: var(--warn); }
+  .status-line.err { color: var(--danger); }
+
+  .cfg-section {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .cfg-section:last-of-type { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+  .cfg-section h3 {
+    font-size: 12px; font-weight: 900; letter-spacing: -.02em;
+    margin-bottom: 8px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .phone-parts {
+    display: grid;
+    grid-template-columns: 64px 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+  }
+  .phone-parts input {
+    text-align: center;
+    letter-spacing: .04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .phone-parts .sep {
+    display: none;
+  }
+  .break-list { display: grid; gap: 8px; }
+  .break-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto;
+    gap: 6px;
+    align-items: center;
+  }
+  .break-row .sep {
+    font-size: 12px; font-weight: 800; color: var(--mute); text-align: center;
+  }
+  .break-row button {
+    border: 0; border-radius: 8px;
+    width: 36px; height: 40px;
+    background: #FEE2E2; color: var(--danger);
+    font-size: 16px; font-weight: 900;
+  }
+  .slot-preview {
+    margin-top: 8px;
+    font-size: 11px; font-weight: 700; color: var(--mute); line-height: 1.45;
+  }
+  .slot-preview b { color: #111; }
+
+  @media (min-width: 720px) {
+    .board {
+      grid-template-columns: 1fr 1fr;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    .ctrl-bar { max-width: 980px; margin-left: auto; margin-right: auto; }
+    .drawer { left: 50%; right: auto; width: min(520px, 100%); transform: translate(-50%, 110%); }
+    .drawer.on { transform: translate(-50%, 0); }
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <div class="brand-en serif">REAL MOVEMENT</div>
+        <h1>체험 스케줄 · 스텝용</h1>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="ghost" id="btn-settings">설정</button>
+        <button type="button" id="btn-export">내보내기</button>
+      </div>
+      <div class="meta">
+        <span>날짜 <strong id="meta-date">9월 12일 (토)</strong></span>
+        <span>장소 <strong id="meta-place">작전이음길 · 가현근린공원 안전 ZONE</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="ctrl-bar">
+    <div class="filters" role="tablist" aria-label="필터">
+      <button type="button" class="on" data-filter="all">전체</button>
+      <button type="button" data-filter="open">빈 칸</button>
+      <button type="button" data-filter="booked">예약됨</button>
+      <button type="button" data-filter="soon">곧 시작</button>
+    </div>
+    <section class="stats" aria-label="현황">
+      <div class="stat"><b id="st-total">0</b><span>전체 칸</span></div>
+      <div class="stat"><b id="st-booked">0</b><span>예약</span></div>
+      <div class="stat"><b id="st-scheduled">0</b><span>알림 예약</span></div>
+      <div class="stat"><b id="st-open">0</b><span>빈 칸</span></div>
+    </section>
+  </div>
+
+  <main class="board" id="board" aria-label="시간표"></main>
+
+  <div class="drawer-bg" id="drawer-bg"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <h2 id="drawer-title">예약 입력</h2>
+      <button type="button" id="drawer-close" aria-label="닫기">×</button>
+    </div>
+
+    <div class="panel on" id="panel-edit">
+      <div class="field">
+        <label for="f-time">시간</label>
+        <input id="f-time" readonly>
+      </div>
+      <div class="field">
+        <label for="f-phone1">전화번호</label>
+        <div class="phone-parts">
+          <input id="f-phone1" type="tel" inputmode="numeric" maxlength="3" value="010" aria-label="전화번호 앞자리">
+          <input id="f-phone2" type="tel" inputmode="numeric" maxlength="4" placeholder="1234" aria-label="전화번호 가운데">
+          <input id="f-phone3" type="tel" inputmode="numeric" maxlength="4" placeholder="5678" aria-label="전화번호 뒷자리">
+        </div>
+        <p class="hint">가운데·뒷자리 4자리씩 입력하면 다음 칸으로 이동합니다.</p>
+      </div>
+      <div class="field">
+        <label for="f-name">이름</label>
+        <input id="f-name" type="text" inputmode="text" autocomplete="name" placeholder="예: 김민수">
+      </div>
+      <div class="field">
+        <label for="f-status">상태</label>
+        <select id="f-status">
+          <option value="booked">예약</option>
+          <option value="done">완료</option>
+          <option value="cancel">취소</option>
+          <option value="noshow">노쇼</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-note">메모 (선택)</label>
+        <input id="f-note" type="text" placeholder="결제·특이사항">
+      </div>
+      <p class="status-line" id="edit-status"></p>
+      <div class="row-btns">
+        <button type="button" class="btn soft" id="btn-clear">칸 비우기</button>
+        <button type="button" class="btn gold" id="btn-save">저장 + 알림톡 예약</button>
+      </div>
+      <div class="row-btns" style="margin-top:8px">
+        <button type="button" class="btn soft" id="btn-save-only">저장만</button>
+        <button type="button" class="btn" id="btn-send-now">지금 알림톡</button>
+      </div>
+    </div>
+
+
+    <div class="panel" id="panel-memo">
+      <div class="field">
+        <label for="m-time">시간</label>
+        <input id="m-time" readonly>
+      </div>
+      <div class="field">
+        <label for="m-note">메모</label>
+        <textarea id="m-note" placeholder="결제·대기·특이사항 등"></textarea>
+      </div>
+      <div class="row-btns">
+        <button type="button" class="btn soft" id="btn-memo-clear">메모 지우기</button>
+        <button type="button" class="btn gold" id="btn-memo-save">메모 저장</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-cfg">
+      <div class="cfg-section">
+        <h3>운영 시간</h3>
+        <div class="field">
+          <label for="c-eventdate">행사 날짜</label>
+          <input id="c-eventdate" type="date" value="2026-09-12">
+        </div>
+        <div class="field">
+          <label for="c-place">장소</label>
+          <input id="c-place" type="text" value="작전이음길 · 가현근린공원 안전 ZONE" placeholder="행사 장소">
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="c-start">시작</label>
+            <input id="c-start" type="time" value="10:00" step="60">
+          </div>
+          <div class="field">
+            <label for="c-end">종료(마지막 시작)</label>
+            <input id="c-end" type="time" value="16:45" step="60">
+          </div>
+        </div>
+        <div class="field">
+          <label for="c-interval">간격(분)</label>
+          <input id="c-interval" type="number" min="5" max="60" step="5" value="15">
+          <p class="hint">예: 15분이면 10:00, 10:15, 10:30… 칸이 만들어집니다.</p>
+        </div>
+      </div>
+
+      <div class="cfg-section">
+        <h3>쉬는 시간</h3>
+        <p class="hint" style="margin-bottom:8px">해당 구간에 시작하는 칸은 스케줄에서 제외됩니다.</p>
+        <div class="break-list" id="break-list"></div>
+        <div class="row-btns" style="margin-top:8px">
+          <button type="button" class="btn soft" id="btn-break-add">쉬는 시간 추가</button>
+          <button type="button" class="btn soft" id="btn-break-clear">전체 삭제</button>
+        </div>
+        <p class="slot-preview" id="slot-preview"></p>
+      </div>
+
+      <div class="cfg-section">
+        <h3>알림톡</h3>
+        <p class="tpl-meta" style="margin-top:0">
+          템플릿 ID · 카카오 채널 pfId는 등록돼 있습니다. 실제 발송에는 API Key · Secret만 더 있으면 됩니다.
+        </p>
+        <div class="field">
+          <label for="c-tplid">솔라피 알림톡 템플릿 ID</label>
+          <input id="c-tplid" type="text" autocomplete="off" placeholder="예: KA01TP…">
+        </div>
+        <details style="margin-top:4px" open>
+          <summary style="cursor:pointer;font-size:12px;font-weight:800;color:var(--mute)">발송용 API 설정</summary>
+          <div class="field" style="margin-top:8px">
+            <label for="c-apikey">API Key</label>
+            <input id="c-apikey" type="password" autocomplete="off" placeholder="솔라피 API Key">
+          </div>
+          <div class="field">
+            <label for="c-apisecret">API Secret</label>
+            <input id="c-apisecret" type="password" autocomplete="off" placeholder="솔라피 API Secret">
+          </div>
+          <div class="field">
+            <label for="c-pfid">카카오 채널 pfId</label>
+            <input id="c-pfid" type="text" autocomplete="off" placeholder="KA01PF…">
+          </div>
+          <div class="field">
+            <label for="c-from">대체문자 발신번호</label>
+            <input id="c-from" type="tel" inputmode="numeric" placeholder="등록된 발신번호">
+          </div>
+        </details>
+      </div>
+
+      <div class="row-btns">
+        <button type="button" class="btn soft" id="btn-cfg-reset">기본값으로</button>
+        <button type="button" class="btn gold" id="btn-cfg-save">설정 저장</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var STORAGE_KEY = "rm_event_schedule_v1";
+  var CFG_KEY = "rm_event_solapi_cfg_v1";
+  var EVENT_DEFAULT_DATE = "2026-09-12";
+  var PLACE_DEFAULT = "작전이음길 · 가현근린공원 안전 ZONE";
+  var PROGRAM = "패시브 스트레칭";
+
+  var state = loadState();
+  var cfg = loadCfg();
+  var currentTime = null;
+  var filter = "all";
+  var toastTimer = null;
+  var draftBreaks = [];
+  var drag = {
+    fromTime: null,
+    active: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    pointerId: null,
+    ghost: null
+  };
+
+  function pad2(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+
+  function minutesToTime(m) {
+    var h = Math.floor(m / 60);
+    var mm = m % 60;
+    return pad2(h) + ":" + pad2(mm);
+  }
+
+  function timeToMinutes(t) {
+    var parts = String(t || "").split(":");
+    var h = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return NaN;
+    return h * 60 + m;
+  }
+
+  function normalizeBreaks(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .map(function (b) {
+        return {
+          start: b && b.start ? String(b.start).slice(0, 5) : "",
+          end: b && b.end ? String(b.end).slice(0, 5) : ""
+        };
+      })
+      .filter(function (b) {
+        var s = timeToMinutes(b.start);
+        var e = timeToMinutes(b.end);
+        return !isNaN(s) && !isNaN(e) && e > s;
+      });
+  }
+
+  function isInBreak(mins, breaks) {
+    for (var i = 0; i < breaks.length; i++) {
+      var s = timeToMinutes(breaks[i].start);
+      var e = timeToMinutes(breaks[i].end);
+      if (!isNaN(s) && !isNaN(e) && mins >= s && mins < e) return true;
+    }
+    return false;
+  }
+
+  function slotsFromCfg(source) {
+    source = source || cfg;
+    var start = timeToMinutes(source.startTime || "10:00");
+    var end = timeToMinutes(source.endTime || "16:45");
+    var step = parseInt(source.intervalMin, 10) || 15;
+    var breaks = normalizeBreaks(source.breaks);
+    if (isNaN(start) || isNaN(end) || end < start || step < 1) return [];
+    var list = [];
+    for (var m = start; m <= end; m += step) {
+      if (isInBreak(m, breaks)) continue;
+      list.push(minutesToTime(m));
+    }
+    return list;
+  }
+
+  function slots() {
+    return slotsFromCfg(cfg);
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { bookings: {} };
+      var parsed = JSON.parse(raw);
+      return parsed && parsed.bookings ? parsed : { bookings: {} };
+    } catch (e) {
+      return { bookings: {} };
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadCfg() {
+    try {
+      var raw = localStorage.getItem(CFG_KEY);
+      if (!raw) return defaultCfg();
+      var parsed = JSON.parse(raw) || {};
+      var merged = Object.assign(defaultCfg(), parsed);
+      merged.breaks = normalizeBreaks(merged.breaks);
+      merged.intervalMin = parseInt(merged.intervalMin, 10) || 15;
+      if (!merged.templateId) merged.templateId = defaultCfg().templateId;
+      if (!merged.pfId) merged.pfId = defaultCfg().pfId;
+      return merged;
+    } catch (e) {
+      return defaultCfg();
+    }
+  }
+
+  function defaultCfg() {
+    return {
+      apiKey: "",
+      apiSecret: "",
+      pfId: "KA01PF260910081826080Z1ZyS9A6vRW",
+      templateId: "KA01TP260910094739181hTiS2bqcvnb",
+      from: "",
+      eventDate: EVENT_DEFAULT_DATE,
+      place: PLACE_DEFAULT,
+      startTime: "10:00",
+      endTime: "16:45",
+      intervalMin: 15,
+      breaks: []
+    };
+  }
+
+  function saveCfg() {
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  }
+
+  function placeStr() {
+    return (cfg.place && String(cfg.place).trim()) || PLACE_DEFAULT;
+  }
+
+  function formatMetaDate(iso) {
+    try {
+      var d = new Date(iso + "T12:00:00");
+      var week = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+      return (d.getMonth() + 1) + "월 " + d.getDate() + "일 (" + week + ")";
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  function updateMeta() {
+    document.getElementById("meta-date").textContent = formatMetaDate(eventDateStr());
+    document.getElementById("meta-place").textContent = placeStr();
+  }
+
+  function updateSlotPreview() {
+    var draft = readScheduleDraft();
+    var list = slotsFromCfg(draft);
+    var breaks = normalizeBreaks(draft.breaks);
+    var el = document.getElementById("slot-preview");
+    if (!el) return;
+    var breakTxt = breaks.length
+      ? " · 쉬는 시간 " + breaks.map(function (b) { return b.start + "–" + b.end; }).join(", ")
+      : "";
+    el.innerHTML = "미리보기: <b>" + list.length + "칸</b> (" +
+      (draft.startTime || "-") + "–" + (draft.endTime || "-") + " · " + (draft.intervalMin || "-") + "분)" +
+      escapeHtml(breakTxt);
+  }
+
+  function readScheduleDraft() {
+    return {
+      startTime: document.getElementById("c-start").value || "10:00",
+      endTime: document.getElementById("c-end").value || "16:45",
+      intervalMin: parseInt(document.getElementById("c-interval").value, 10) || 15,
+      breaks: normalizeBreaks(draftBreaks)
+    };
+  }
+
+  function renderBreakList() {
+    var box = document.getElementById("break-list");
+    box.innerHTML = "";
+    if (!draftBreaks.length) {
+      box.innerHTML = '<p class="hint">쉬는 시간이 없습니다.</p>';
+      updateSlotPreview();
+      return;
+    }
+    draftBreaks.forEach(function (b, idx) {
+      var row = document.createElement("div");
+      row.className = "break-row";
+      row.innerHTML =
+        '<input type="time" data-break-idx="' + idx + '" data-break-field="start" value="' + (b.start || "") + '" step="60">' +
+        '<span class="sep">~</span>' +
+        '<input type="time" data-break-idx="' + idx + '" data-break-field="end" value="' + (b.end || "") + '" step="60">' +
+        '<button type="button" data-break-del="' + idx + '" aria-label="삭제">×</button>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll("input[type=time]").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        var i = parseInt(inp.getAttribute("data-break-idx"), 10);
+        var field = inp.getAttribute("data-break-field");
+        if (!draftBreaks[i]) return;
+        draftBreaks[i][field] = inp.value;
+        updateSlotPreview();
+      });
+    });
+    box.querySelectorAll("[data-break-del]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var i = parseInt(btn.getAttribute("data-break-del"), 10);
+        draftBreaks.splice(i, 1);
+        renderBreakList();
+      });
+    });
+    updateSlotPreview();
+  }
+
+  function digitsPhone(v) {
+    return String(v || "").replace(/\D/g, "");
+  }
+
+  function formatPhone(v) {
+    var d = digitsPhone(v);
+    if (d.length === 11) return d.slice(0, 3) + "-" + d.slice(3, 7) + "-" + d.slice(7);
+    if (d.length === 10) return d.slice(0, 3) + "-" + d.slice(3, 6) + "-" + d.slice(6);
+    return v || "";
+  }
+
+  function splitPhone(v) {
+    var d = digitsPhone(v);
+    if (d.length >= 11) {
+      return { p1: d.slice(0, 3), p2: d.slice(3, 7), p3: d.slice(7, 11) };
+    }
+    if (d.length === 10) {
+      return { p1: d.slice(0, 3), p2: d.slice(3, 6), p3: d.slice(6, 10) };
+    }
+    if (d.length > 3) {
+      return { p1: d.slice(0, 3), p2: d.slice(3, 7), p3: d.slice(7, 11) };
+    }
+    return { p1: d || "010", p2: "", p3: "" };
+  }
+
+  function readPhoneParts() {
+    return digitsPhone(
+      document.getElementById("f-phone1").value +
+      document.getElementById("f-phone2").value +
+      document.getElementById("f-phone3").value
+    );
+  }
+
+  function setPhoneParts(v) {
+    var parts = splitPhone(v);
+    document.getElementById("f-phone1").value = parts.p1 || "010";
+    document.getElementById("f-phone2").value = parts.p2 || "";
+    document.getElementById("f-phone3").value = parts.p3 || "";
+  }
+
+  function onlyDigitsInput(el, maxLen) {
+    var digits = String(el.value || "").replace(/\D/g, "").slice(0, maxLen);
+    if (el.value !== digits) el.value = digits;
+    return digits;
+  }
+
+  function bindPhoneAutoFocus() {
+    var p1 = document.getElementById("f-phone1");
+    var p2 = document.getElementById("f-phone2");
+    var p3 = document.getElementById("f-phone3");
+    var name = document.getElementById("f-name");
+
+    p1.addEventListener("input", function () {
+      onlyDigitsInput(p1, 3);
+      if (p1.value.length >= 3) {
+        p2.focus();
+        p2.select();
+      }
+    });
+    p2.addEventListener("input", function () {
+      var v = onlyDigitsInput(p2, 4);
+      if (v.length >= 4) {
+        p3.focus();
+        p3.select();
+      }
+    });
+    p3.addEventListener("input", function () {
+      var v = onlyDigitsInput(p3, 4);
+      if (v.length >= 4) {
+        name.focus();
+        name.select();
+      }
+    });
+    p2.addEventListener("keydown", function (e) {
+      if (e.key === "Backspace" && !p2.value) p1.focus();
+    });
+    p3.addEventListener("keydown", function (e) {
+      if (e.key === "Backspace" && !p3.value) p2.focus();
+    });
+    name.addEventListener("keydown", function (e) {
+      if (e.key === "Backspace" && !name.value) p3.focus();
+    });
+  }
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("on"); }, 2600);
+  }
+
+  function booking(time) {
+    return state.bookings[time] || null;
+  }
+
+  function statusLabel(b) {
+    if (!b || !b.name) return { key: "open", text: "빈 칸" };
+    if (b.status === "done") return { key: "done", text: "완료" };
+    if (b.status === "cancel") return { key: "cancel", text: "취소" };
+    if (b.status === "noshow") return { key: "noshow", text: "노쇼" };
+    return { key: "booked", text: "예약" };
+  }
+
+  function normalizeStatus(v) {
+    if (v === "done" || v === "cancel" || v === "noshow" || v === "booked") return v;
+    return "booked";
+  }
+
+  function setBookingStatus(time, status) {
+    var b = booking(time);
+    if (!b || !b.name) return;
+    b.status = normalizeStatus(status);
+    b.updatedAt = new Date().toISOString();
+    state.bookings[time] = b;
+    saveState();
+    renderBoard();
+    toast(time + " · " + statusLabel(b).text);
+  }
+
+  function cloneBooking(b) {
+    if (!b) return null;
+    return JSON.parse(JSON.stringify(b));
+  }
+
+  function bookingLabel(b) {
+    if (!b || !b.name) return "빈 칸";
+    return b.name + " · " + formatPhone(b.phone || "");
+  }
+
+  function clearDragHighlights() {
+    document.querySelectorAll(".slot.drag-source, .slot.drop-target").forEach(function (el) {
+      el.classList.remove("drag-source", "drop-target");
+    });
+    document.querySelectorAll(".time.is-dragging").forEach(function (el) {
+      el.classList.remove("is-dragging");
+    });
+  }
+
+  function removeDragGhost() {
+    if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    drag.ghost = null;
+  }
+
+  function endDrag() {
+    clearDragHighlights();
+    removeDragGhost();
+    drag.fromTime = null;
+    drag.active = false;
+    drag.pointerId = null;
+  }
+
+  function slotFromPoint(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return el ? el.closest(".slot") : null;
+  }
+
+  function swapBookings(fromTime, toTime) {
+    if (!fromTime || !toTime || fromTime === toTime) return false;
+    var fromB = cloneBooking(booking(fromTime));
+    var toB = cloneBooking(booking(toTime));
+    var now = new Date().toISOString();
+    if (toB) {
+      toB.updatedAt = now;
+      state.bookings[fromTime] = toB;
+    } else {
+      delete state.bookings[fromTime];
+    }
+    if (fromB) {
+      fromB.updatedAt = now;
+      state.bookings[toTime] = fromB;
+    } else {
+      delete state.bookings[toTime];
+    }
+    saveState();
+    renderBoard();
+    toast(fromTime + " ↔ " + toTime + " 변경됨");
+    return true;
+  }
+
+  function askAndSwap(fromTime, toTime) {
+    if (!fromTime || !toTime || fromTime === toTime) return;
+    var fromB = booking(fromTime);
+    var toB = booking(toTime);
+    if (!fromB || !fromB.name) return;
+    var msg =
+      fromTime + "  " + bookingLabel(fromB) + "\n" +
+      "↔\n" +
+      toTime + "  " + bookingLabel(toB) + "\n\n" +
+      "해당 시간대와 서로 변경할까요?";
+    if (!confirm(msg)) return;
+    swapBookings(fromTime, toTime);
+  }
+
+  function bindGuestDrag(handleEl, row, time) {
+    handleEl.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      if (!(booking(time) && booking(time).name)) return;
+      drag.fromTime = time;
+      drag.active = false;
+      drag.moved = false;
+      drag.startX = e.clientX;
+      drag.startY = e.clientY;
+      drag.pointerId = e.pointerId;
+      try { handleEl.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    handleEl.addEventListener("pointermove", function (e) {
+      if (drag.pointerId !== e.pointerId || !drag.fromTime) return;
+      var dx = e.clientX - drag.startX;
+      var dy = e.clientY - drag.startY;
+      if (!drag.active && (dx * dx + dy * dy) < 64) return;
+      if (!drag.active) {
+        drag.active = true;
+        drag.moved = true;
+        handleEl.classList.add("is-dragging");
+        row.classList.add("drag-source");
+        drag.ghost = document.createElement("div");
+        drag.ghost.className = "drag-ghost";
+        drag.ghost.textContent = bookingLabel(booking(time));
+        document.body.appendChild(drag.ghost);
+      }
+      if (drag.ghost) {
+        drag.ghost.style.left = e.clientX + "px";
+        drag.ghost.style.top = e.clientY + "px";
+      }
+      document.querySelectorAll(".slot.drop-target").forEach(function (el) {
+        el.classList.remove("drop-target");
+      });
+      row.classList.add("drag-source");
+      handleEl.classList.add("is-dragging");
+      var over = slotFromPoint(e.clientX, e.clientY);
+      if (over) {
+        var toTime = over.getAttribute("data-time");
+        if (toTime && toTime !== time) over.classList.add("drop-target");
+      }
+    });
+    function finishPointer(e) {
+      if (drag.pointerId !== e.pointerId) return;
+      var fromTime = drag.fromTime;
+      var didDrag = drag.active;
+      var toSlot = didDrag ? slotFromPoint(e.clientX, e.clientY) : null;
+      var toTime = toSlot ? toSlot.getAttribute("data-time") : null;
+      try { handleEl.releasePointerCapture(e.pointerId); } catch (err2) {}
+      endDrag();
+      if (didDrag) {
+        drag.moved = true;
+        setTimeout(function () { drag.moved = false; }, 50);
+        if (fromTime && toTime && fromTime !== toTime) askAndSwap(fromTime, toTime);
+      }
+    }
+    handleEl.addEventListener("pointerup", finishPointer);
+    handleEl.addEventListener("pointercancel", function (e) {
+      if (drag.pointerId !== e.pointerId) return;
+      endDrag();
+      drag.moved = false;
+    });
+  }
+
+  function readRowGuest(row) {
+    var p1 = row.querySelector('[data-field="phone1"]');
+    var p2 = row.querySelector('[data-field="phone2"]');
+    var p3 = row.querySelector('[data-field="phone3"]');
+    var nameEl = row.querySelector('[data-field="name"]');
+    var memoEl = row.querySelector('[data-field="memo"]');
+    return {
+      phone: digitsPhone((p1 && p1.value) + (p2 && p2.value) + (p3 && p3.value)),
+      name: nameEl ? nameEl.value.trim() : "",
+      note: memoEl ? memoEl.value.trim() : ""
+    };
+  }
+
+  function updateRowStatus(row, time) {
+    var b = booking(time);
+    var st = statusLabel(b);
+    var side = row.querySelector(".slot-side");
+    if (!side) return;
+    var oldStatus = side.querySelector(".badge-select, .badge.open");
+    var next;
+    if (b && b.name) {
+      next = document.createElement("select");
+      next.className = "badge-select " + st.key;
+      next.setAttribute("aria-label", time + " 상태");
+      next.innerHTML =
+        '<option value="booked">예약</option>' +
+        '<option value="done">완료</option>' +
+        '<option value="cancel">취소</option>' +
+        '<option value="noshow">노쇼</option>';
+      next.value = normalizeStatus(b.status);
+      next.addEventListener("change", function () {
+        setBookingStatus(time, next.value);
+      });
+    } else {
+      next = document.createElement("span");
+      next.className = "badge open";
+      next.textContent = "빈 칸";
+    }
+    if (oldStatus) side.replaceChild(next, oldStatus);
+    else side.insertBefore(next, side.firstChild);
+    row.classList.toggle("has-guest", !!(b && b.name));
+    row.classList.toggle("has-memo", !!(b && String(b.note || "").trim()));
+  }
+
+  function saveInlineRow(row, opts) {
+    opts = opts || {};
+    var time = row.getAttribute("data-time");
+    if (!time) return;
+    var data = readRowGuest(row);
+    var prev = booking(time) || {};
+    var hasGuest = !!(data.name && data.phone.length >= 10);
+    var hasAnything = hasGuest || !!data.note || !!(prev.alimStatus);
+
+    if (!data.name && data.phone.length <= 3 && !data.note) {
+      if (prev.name || prev.note) {
+        delete state.bookings[time];
+        saveState();
+        updateRowStatus(row, time);
+        renderStats();
+        if (opts.toast) toast(time + " 비움");
+      }
+      return;
+    }
+
+    if (data.name && data.phone.length < 10) {
+      if (opts.warn) toast("전화번호 자릿수를 확인해 주세요.");
+      return;
+    }
+    if (data.phone.length >= 10 && !data.name) {
+      if (opts.warn) toast("이름을 입력해 주세요.");
+      return;
+    }
+
+    if (!hasAnything && !hasGuest) return;
+
+    state.bookings[time] = {
+      name: data.name || "",
+      phone: data.phone || "",
+      status: hasGuest ? normalizeStatus(prev.status || "booked") : normalizeStatus(prev.status || "booked"),
+      note: data.note || "",
+      updatedAt: new Date().toISOString(),
+      alimStatus: prev.alimStatus || "",
+      alimAt: prev.alimAt || "",
+      alimGroupId: prev.alimGroupId || "",
+      alimError: prev.alimError || ""
+    };
+    if (!hasGuest && !data.note) {
+      delete state.bookings[time];
+    }
+    saveState();
+    updateRowStatus(row, time);
+    renderStats();
+    var memoEl = row.querySelector('[data-field="memo"]');
+    if (memoEl) {
+      memoEl.classList.toggle("has-value", !!data.note);
+    }
+    var timeEl = row.querySelector(".time");
+    if (hasGuest && timeEl && timeEl.getAttribute("data-drag") !== "1") {
+      timeEl.setAttribute("data-drag", "1");
+      timeEl.title = "드래그해서 시간 이동";
+      bindGuestDrag(timeEl, row, time);
+    }
+    if (opts.toast && hasGuest) toast(time + " 예약");
+  }
+
+  function bindInlinePhone(row) {
+    var p1 = row.querySelector('[data-field="phone1"]');
+    var p2 = row.querySelector('[data-field="phone2"]');
+    var p3 = row.querySelector('[data-field="phone3"]');
+    var name = row.querySelector('[data-field="name"]');
+    if (!p1 || !p2 || !p3 || !name) return;
+
+    p1.addEventListener("input", function () {
+      onlyDigitsInput(p1, 3);
+      if (p1.value.length >= 3) { p2.focus(); p2.select(); }
+    });
+    p2.addEventListener("input", function () {
+      var v = onlyDigitsInput(p2, 4);
+      if (v.length >= 4) { p3.focus(); p3.select(); }
+    });
+    p3.addEventListener("input", function () {
+      var v = onlyDigitsInput(p3, 4);
+      if (v.length >= 4) { name.focus(); name.select(); }
+    });
+    p2.addEventListener("keydown", function (e) {
+      if (e.key === "Backspace" && !p2.value) p1.focus();
+    });
+    p3.addEventListener("keydown", function (e) {
+      if (e.key === "Backspace" && !p3.value) p2.focus();
+    });
+    name.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveInlineRow(row, { toast: true, warn: true });
+        name.blur();
+      }
+      if (e.key === "Backspace" && !name.value) p3.focus();
+    });
+    [p1, p2, p3, name].forEach(function (el) {
+      el.addEventListener("blur", function () {
+        setTimeout(function () {
+          var active = document.activeElement;
+          if (active && row.contains(active)) return;
+          saveInlineRow(row, { toast: false, warn: false });
+        }, 0);
+      });
+    });
+  }
+
+  function eventDateStr() {
+    return cfg.eventDate || EVENT_DEFAULT_DATE;
+  }
+
+  function slotDate(time) {
+    // local Asia/Seoul assumed on device
+    return new Date(eventDateStr() + "T" + time + ":00");
+  }
+
+  function notifyAt(time) {
+    return new Date(slotDate(time).getTime() - 5 * 60 * 1000);
+  }
+
+  function isSoon(time) {
+    var now = Date.now();
+    var start = slotDate(time).getTime();
+    return start - now <= 20 * 60 * 1000 && start - now >= -10 * 60 * 1000;
+  }
+
+  function isPast(time) {
+    return Date.now() > slotDate(time).getTime() + 10 * 60 * 1000;
+  }
+
+  function renderStats() {
+    var all = slots();
+    var booked = 0, scheduled = 0, open = 0;
+    all.forEach(function (t) {
+      var b = booking(t);
+      if (!b || !b.name) { open++; return; }
+      booked++;
+      if (b.alimStatus === "scheduled" || b.alimStatus === "sent") scheduled++;
+    });
+    document.getElementById("st-total").textContent = String(all.length);
+    document.getElementById("st-booked").textContent = String(booked);
+    document.getElementById("st-scheduled").textContent = String(scheduled);
+    document.getElementById("st-open").textContent = String(open);
+  }
+
+  function renderBoard() {
+    var board = document.getElementById("board");
+    var active = document.activeElement;
+    var keep = null;
+    if (active && board.contains(active) && active.getAttribute("data-field")) {
+      var keepRow = active.closest(".slot");
+      keep = {
+        time: keepRow ? keepRow.getAttribute("data-time") : "",
+        field: active.getAttribute("data-field"),
+        start: active.selectionStart,
+        end: active.selectionEnd,
+        value: active.value
+      };
+    }
+    board.innerHTML = "";
+    slots().forEach(function (t) {
+      var b = booking(t);
+      var st = statusLabel(b);
+      if (filter === "open" && b && b.name) return;
+      if (filter === "booked" && !(b && b.name && normalizeStatus(b.status) === "booked")) return;
+      if (filter === "soon" && !isSoon(t)) return;
+
+      var parts = splitPhone((b && b.phone) || "010");
+      var row = document.createElement("div");
+      row.className = "slot";
+      row.setAttribute("data-time", t);
+      if (b && b.name) row.classList.add("has-guest");
+      if (b && String(b.note || "").trim()) row.classList.add("has-memo");
+      if (isSoon(t)) row.classList.add("soon");
+      if (isPast(t)) row.classList.add("past");
+
+      var main = document.createElement("div");
+      main.className = "slot-main";
+      main.innerHTML =
+        '<div class="time" title="' + (b && b.name ? "드래그해서 시간 이동" : "") + '">' + t + "</div>" +
+        '<div class="slot-fields">' +
+          '<div class="inline-phone">' +
+            '<input data-field="phone1" type="tel" inputmode="numeric" maxlength="3" value="' + escapeHtml(parts.p1 || "010") + '" aria-label="' + t + ' 전화 앞자리">' +
+            '<input data-field="phone2" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p2 || "") + '" placeholder="1234" aria-label="' + t + ' 전화 가운데">' +
+            '<input data-field="phone3" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p3 || "") + '" placeholder="5678" aria-label="' + t + ' 전화 뒷자리">' +
+          "</div>" +
+          '<input class="inline-name" data-field="name" type="text" value="' + escapeHtml((b && b.name) || "") + '" placeholder="이름" aria-label="' + t + ' 이름">' +
+        "</div>";
+
+      var timeEl = main.querySelector(".time");
+      if (b && b.name) {
+        timeEl.setAttribute("data-drag", "1");
+        bindGuestDrag(timeEl, row, t);
+      }
+
+      var side = document.createElement("div");
+      side.className = "slot-side";
+
+      var statusEl;
+      if (b && b.name) {
+        statusEl = document.createElement("select");
+        statusEl.className = "badge-select " + st.key;
+        statusEl.setAttribute("aria-label", t + " 상태");
+        statusEl.innerHTML =
+          '<option value="booked">예약</option>' +
+          '<option value="done">완료</option>' +
+          '<option value="cancel">취소</option>' +
+          '<option value="noshow">노쇼</option>';
+        statusEl.value = normalizeStatus(b.status);
+        statusEl.addEventListener("change", function () {
+          setBookingStatus(t, statusEl.value);
+        });
+      } else {
+        statusEl = document.createElement("span");
+        statusEl.className = "badge open";
+        statusEl.textContent = "빈 칸";
+      }
+
+      var noteVal = (b && b.note) || "";
+      var memoInput = document.createElement("input");
+      memoInput.className = "memo-input" + (noteVal ? " has-value" : "");
+      memoInput.setAttribute("data-field", "memo");
+      memoInput.type = "text";
+      memoInput.placeholder = "메모";
+      memoInput.value = noteVal;
+      memoInput.setAttribute("aria-label", t + " 메모");
+      memoInput.addEventListener("input", function () {
+        memoInput.classList.toggle("has-value", !!memoInput.value.trim());
+      });
+      memoInput.addEventListener("blur", function () {
+        saveInlineRow(row, { toast: false, warn: false });
+      });
+      memoInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          memoInput.blur();
+        }
+      });
+
+      side.appendChild(statusEl);
+      side.appendChild(memoInput);
+      row.appendChild(main);
+      row.appendChild(side);
+      board.appendChild(row);
+      bindInlinePhone(row);
+    });
+    renderStats();
+    updateMeta();
+
+    if (keep && keep.time) {
+      var row2 = board.querySelector('.slot[data-time="' + keep.time + '"]');
+      var el = row2 && row2.querySelector('[data-field="' + keep.field + '"]');
+      if (el) {
+        el.focus();
+        try {
+          if (typeof keep.start === "number") el.setSelectionRange(keep.start, keep.end);
+        } catch (err) {}
+      }
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function openDrawer(panel) {
+    document.getElementById("drawer-bg").classList.add("on");
+    document.getElementById("drawer").classList.add("on");
+    document.getElementById("drawer").setAttribute("aria-hidden", "false");
+    setPanel(panel || "edit");
+  }
+
+  function closeDrawer() {
+    document.getElementById("drawer-bg").classList.remove("on");
+    document.getElementById("drawer").classList.remove("on");
+    document.getElementById("drawer").setAttribute("aria-hidden", "true");
+    currentTime = null;
+  }
+
+  function setPanel(name) {
+    ["edit", "cfg", "memo"].forEach(function (p) {
+      document.getElementById("panel-" + p).classList.toggle("on", p === name);
+    });
+    if (name === "cfg") fillCfgForm();
+  }
+
+  function openMemo(time) {
+    currentTime = time;
+    var b = booking(time) || {};
+    document.getElementById("drawer-title").textContent = time + " 메모";
+    document.getElementById("m-time").value = time;
+    document.getElementById("m-note").value = b.note || "";
+    openDrawer("memo");
+    setTimeout(function () {
+      var el = document.getElementById("m-note");
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 50);
+  }
+
+  function saveMemoOnly() {
+    var time = currentTime || document.getElementById("m-time").value;
+    if (!time) return;
+    var note = document.getElementById("m-note").value.trim();
+    var prev = booking(time) || {};
+    if (!note && !prev.name) {
+      delete state.bookings[time];
+      saveState();
+      renderBoard();
+      toast(time + " 메모 삭제");
+      closeDrawer();
+      return;
+    }
+    state.bookings[time] = {
+      name: prev.name || "",
+      phone: prev.phone || "",
+      status: normalizeStatus(prev.status || "booked"),
+      note: note,
+      updatedAt: new Date().toISOString(),
+      alimStatus: prev.alimStatus || "",
+      alimAt: prev.alimAt || "",
+      alimGroupId: prev.alimGroupId || "",
+      alimError: prev.alimError || ""
+    };
+    saveState();
+    renderBoard();
+    toast(note ? (time + " 메모 저장") : (time + " 메모 삭제"));
+    closeDrawer();
+  }
+
+  function clearMemoOnly() {
+    document.getElementById("m-note").value = "";
+    saveMemoOnly();
+  }
+
+  function openEdit(time) {
+    currentTime = time;
+    var b = booking(time) || {};
+    document.getElementById("drawer-title").textContent = time + " 예약";
+    document.getElementById("f-time").value = time;
+    setPhoneParts(b.phone || "010");
+    document.getElementById("f-name").value = b.name || "";
+    document.getElementById("f-status").value = normalizeStatus(b.status || "booked");
+    document.getElementById("f-note").value = b.note || "";
+    var line = document.getElementById("edit-status");
+    if (b.alimStatus === "scheduled" && b.alimAt) {
+      line.className = "status-line";
+      line.textContent = "알림톡 예약됨 · " + b.alimAt;
+    } else if (b.alimStatus === "sent") {
+      line.className = "status-line";
+      line.textContent = "알림톡 발송 완료" + (b.alimGroupId ? " · " + b.alimGroupId : "");
+    } else if (b.alimError) {
+      line.className = "status-line err";
+      line.textContent = "알림톡 오류 · " + b.alimError;
+    } else {
+      line.className = "status-line warn";
+      line.textContent = cfgReady()
+        ? "알림톡 미예약 · 저장 시 시작 5분 전으로 예약됩니다."
+        : "알림톡 API 미설정 · 예약만 저장됩니다.";
+    }
+    openDrawer("edit");
+    setTimeout(function () {
+      var p2 = document.getElementById("f-phone2");
+      p2.focus();
+      p2.select();
+    }, 50);
+  }
+
+  function openSettingsOnly() {
+    document.getElementById("drawer-title").textContent = "스케줄 설정";
+    openDrawer("cfg");
+  }
+
+  function fillCfgForm() {
+    document.getElementById("c-eventdate").value = cfg.eventDate || EVENT_DEFAULT_DATE;
+    document.getElementById("c-place").value = cfg.place || PLACE_DEFAULT;
+    document.getElementById("c-start").value = cfg.startTime || "10:00";
+    document.getElementById("c-end").value = cfg.endTime || "16:45";
+    document.getElementById("c-interval").value = String(cfg.intervalMin || 15);
+    draftBreaks = normalizeBreaks(cfg.breaks).map(function (b) {
+      return { start: b.start, end: b.end };
+    });
+    renderBreakList();
+    document.getElementById("c-tplid").value = cfg.templateId || "";
+    document.getElementById("c-apikey").value = cfg.apiKey || "";
+    document.getElementById("c-apisecret").value = cfg.apiSecret || "";
+    document.getElementById("c-pfid").value = cfg.pfId || "";
+    document.getElementById("c-from").value = cfg.from || "";
+  }
+
+  function readCfgForm() {
+    var start = document.getElementById("c-start").value || "10:00";
+    var end = document.getElementById("c-end").value || "16:45";
+    var interval = parseInt(document.getElementById("c-interval").value, 10) || 15;
+    if (interval < 5) interval = 5;
+    if (interval > 60) interval = 60;
+    var sMin = timeToMinutes(start);
+    var eMin = timeToMinutes(end);
+    if (isNaN(sMin) || isNaN(eMin) || eMin < sMin) {
+      toast("시작·종료 시간을 확인해 주세요.");
+      return false;
+    }
+    var place = document.getElementById("c-place").value.trim();
+    if (!place) {
+      toast("장소를 입력해 주세요.");
+      return false;
+    }
+    cfg.eventDate = document.getElementById("c-eventdate").value || EVENT_DEFAULT_DATE;
+    cfg.place = place;
+    cfg.startTime = start;
+    cfg.endTime = end;
+    cfg.intervalMin = interval;
+    cfg.breaks = normalizeBreaks(draftBreaks);
+    cfg.templateId = document.getElementById("c-tplid").value.trim();
+    cfg.apiKey = document.getElementById("c-apikey").value.trim();
+    cfg.apiSecret = document.getElementById("c-apisecret").value.trim();
+    cfg.pfId = document.getElementById("c-pfid").value.trim();
+    cfg.from = digitsPhone(document.getElementById("c-from").value);
+    return true;
+  }
+
+  function validateGuest(name, phone) {
+    if (!name) return "이름을 입력해 주세요.";
+    var d = digitsPhone(phone);
+    if (d.length < 10 || d.length > 11) return "전화번호 자릿수를 확인해 주세요.";
+    if (d[0] !== "0") return "전화번호 형식을 확인해 주세요.";
+    return "";
+  }
+
+  function saveBooking(opts) {
+    opts = opts || {};
+    var time = currentTime || document.getElementById("f-time").value;
+    var name = document.getElementById("f-name").value.trim();
+    var phone = readPhoneParts();
+    var status = document.getElementById("f-status").value;
+    var note = document.getElementById("f-note").value.trim();
+    var err = validateGuest(name, phone);
+    if (err) {
+      toast(err);
+      return null;
+    }
+    var prev = booking(time) || {};
+    state.bookings[time] = {
+      name: name,
+      phone: phone,
+      status: normalizeStatus(status || "booked"),
+      note: note,
+      updatedAt: new Date().toISOString(),
+      alimStatus: prev.alimStatus || "",
+      alimAt: prev.alimAt || "",
+      alimGroupId: prev.alimGroupId || "",
+      alimError: prev.alimError || ""
+    };
+    saveState();
+    renderBoard();
+    if (opts.schedule) {
+      return scheduleAlimtalk(time, { immediate: !!opts.immediate }).then(function () {
+        openEdit(time);
+        return state.bookings[time];
+      });
+    }
+    toast(time + " 저장됨");
+    openEdit(time);
+    return Promise.resolve(state.bookings[time]);
+  }
+
+  function clearBooking() {
+    if (!currentTime) return;
+    if (!confirm(currentTime + " 칸을 비울까요?")) return;
+    delete state.bookings[currentTime];
+    saveState();
+    renderBoard();
+    toast(currentTime + " 비움");
+    closeDrawer();
+  }
+
+  function cfgReady() {
+    return !!(cfg.apiKey && cfg.apiSecret && cfg.pfId && cfg.templateId);
+  }
+
+  function toIsoKst(date) {
+    var y = date.getFullYear();
+    var m = String(date.getMonth() + 1).padStart(2, "0");
+    var d = String(date.getDate()).padStart(2, "0");
+    var hh = String(date.getHours()).padStart(2, "0");
+    var mm = String(date.getMinutes()).padStart(2, "0");
+    var ss = String(date.getSeconds()).padStart(2, "0");
+    return y + "-" + m + "-" + d + "T" + hh + ":" + mm + ":" + ss + "+09:00";
+  }
+
+  function randomSalt() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return String(Date.now()) + Math.random().toString(16).slice(2);
+  }
+
+  function hmacSha256Hex(secret, message) {
+    var enc = new TextEncoder();
+    return crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    ).then(function (key) {
+      return crypto.subtle.sign("HMAC", key, enc.encode(message));
+    }).then(function (buf) {
+      return Array.from(new Uint8Array(buf)).map(function (b) {
+        return b.toString(16).padStart(2, "0");
+      }).join("");
+    });
+  }
+
+  function solapiAuthHeader() {
+    var date = new Date().toISOString();
+    var salt = randomSalt();
+    return hmacSha256Hex(cfg.apiSecret, date + salt).then(function (signature) {
+      return "HMAC-SHA256 apiKey=" + cfg.apiKey + ", date=" + date + ", salt=" + salt + ", signature=" + signature;
+    });
+  }
+
+  function scheduleAlimtalk(time, opts) {
+    opts = opts || {};
+    var b = booking(time);
+    if (!b || !b.name) return Promise.reject(new Error("예약 정보가 없습니다."));
+    if (!cfgReady()) {
+      toast(time + " 저장됨 · 알림톡 API Key·Secret을 설정에서 입력");
+      return Promise.resolve(null);
+    }
+
+    var when = opts.immediate ? new Date() : notifyAt(time);
+    if (!opts.immediate && when.getTime() <= Date.now() + 15 * 1000) {
+      when = new Date();
+      opts.immediate = true;
+    }
+
+    var payload = {
+      message: {
+        to: b.phone,
+        from: cfg.from || undefined,
+        kakaoOptions: {
+          pfId: cfg.pfId,
+          templateId: cfg.templateId,
+          variables: {
+            "#{이름}": b.name,
+            "#{시간}": time,
+            "#{장소}": placeStr()
+          }
+        }
+      },
+      scheduledDate: toIsoKst(when)
+    };
+    if (!cfg.from) delete payload.message.from;
+
+    return solapiAuthHeader().then(function (auth) {
+      return fetch("https://api.solapi.com/messages/v4/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: auth
+        },
+        body: JSON.stringify(payload)
+      });
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) {
+          var msg = (data && (data.errorMessage || data.message)) || ("HTTP " + res.status);
+          throw new Error(msg);
+        }
+        return data;
+      });
+    }).then(function (data) {
+      var groupId = (data && (data.groupId || (data.groupInfo && data.groupInfo.groupId))) || "";
+      state.bookings[time].alimStatus = opts.immediate ? "sent" : "scheduled";
+      state.bookings[time].alimAt = toIsoKst(when).replace("T", " ").replace("+09:00", "");
+      state.bookings[time].alimGroupId = groupId;
+      state.bookings[time].alimError = "";
+      saveState();
+      renderBoard();
+      toast(opts.immediate ? (time + " 알림톡 즉시 발송") : (time + " 알림톡 " + state.bookings[time].alimAt + " 예약"));
+      return data;
+    }).catch(function (err) {
+      if (state.bookings[time]) {
+        state.bookings[time].alimError = String(err.message || err);
+        saveState();
+      }
+      toast("알림톡 실패: " + (err.message || err));
+      throw err;
+    });
+  }
+
+  function exportCsv() {
+    var rows = [["시간", "이름", "전화번호", "상태", "알림상태", "알림시각", "메모"]];
+    slots().forEach(function (t) {
+      var b = booking(t);
+      rows.push([
+        t,
+        (b && b.name) || "",
+        (b && formatPhone(b.phone)) || "",
+        (b && b.status) || "",
+        (b && b.alimStatus) || "",
+        (b && b.alimAt) || "",
+        (b && b.note) || ""
+      ]);
+    });
+    var csv = rows.map(function (r) {
+      return r.map(function (c) {
+        var s = String(c).replace(/"/g, '""');
+        return '"' + s + '"';
+      }).join(",");
+    }).join("\n");
+    var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "리얼무브먼트_체험스케줄_" + eventDateStr() + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("CSV 저장");
+  }
+
+  function copyText(text, okMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { toast(okMsg); });
+    }
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    toast(okMsg);
+    return Promise.resolve();
+  }
+
+  // events
+  document.getElementById("drawer-bg").addEventListener("click", closeDrawer);
+  document.getElementById("drawer-close").addEventListener("click", closeDrawer);
+  document.getElementById("btn-settings").addEventListener("click", openSettingsOnly);
+  document.getElementById("btn-export").addEventListener("click", exportCsv);
+  document.getElementById("btn-clear").addEventListener("click", clearBooking);
+  document.getElementById("btn-memo-save").addEventListener("click", saveMemoOnly);
+  document.getElementById("btn-memo-clear").addEventListener("click", clearMemoOnly);
+  document.getElementById("btn-save").addEventListener("click", function () {
+    saveBooking({ schedule: true, immediate: false });
+  });
+  document.getElementById("btn-save-only").addEventListener("click", function () {
+    saveBooking({ schedule: false });
+  });
+  document.getElementById("btn-send-now").addEventListener("click", function () {
+    saveBooking({ schedule: true, immediate: true });
+  });
+  document.getElementById("btn-cfg-save").addEventListener("click", function () {
+    if (!readCfgForm()) return;
+    saveCfg();
+    renderBoard();
+    toast("설정 저장 · " + slots().length + "칸");
+    closeDrawer();
+  });
+  document.getElementById("btn-cfg-reset").addEventListener("click", function () {
+    if (!confirm("운영 시간·쉬는 시간을 기본값(10:00–16:45 · 15분)으로 되돌릴까요?\n알림톡 ID는 유지됩니다.")) return;
+    var keep = {
+      apiKey: cfg.apiKey,
+      apiSecret: cfg.apiSecret,
+      pfId: cfg.pfId,
+      templateId: cfg.templateId,
+      from: cfg.from
+    };
+    cfg = Object.assign(defaultCfg(), keep);
+    saveCfg();
+    fillCfgForm();
+    renderBoard();
+    toast("기본값으로 되돌림");
+  });
+  document.getElementById("btn-break-add").addEventListener("click", function () {
+    draftBreaks.push({ start: "12:00", end: "13:00" });
+    renderBreakList();
+  });
+  document.getElementById("btn-break-clear").addEventListener("click", function () {
+    if (!draftBreaks.length) return;
+    if (!confirm("쉬는 시간을 모두 삭제할까요?")) return;
+    draftBreaks = [];
+    renderBreakList();
+  });
+  ["c-start", "c-end", "c-interval"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", updateSlotPreview);
+    document.getElementById(id).addEventListener("change", updateSlotPreview);
+  });
+  document.querySelectorAll(".filters button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      filter = b.getAttribute("data-filter");
+      document.querySelectorAll(".filters button").forEach(function (x) {
+        x.classList.toggle("on", x === b);
+      });
+      renderBoard();
+    });
+  });
+  if (typeof bindPhoneAutoFocus === "function") bindPhoneAutoFocus();
+  renderBoard();
+  setInterval(function () {
+    var active = document.activeElement;
+    var board = document.getElementById("board");
+    if (active && board && board.contains(active) && active.matches("input, select, textarea")) return;
+    renderBoard();
+  }, 60 * 1000);
+})();
+</script>
+</body>
+</html>
