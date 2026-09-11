@@ -955,7 +955,7 @@
         <div class="field">
           <label for="c-place" class="label-row">
             <span>장소</span>
-            <span class="label-hint">알림톡: 이름 + 시간 · 패시브 스트레칭 · 5분 전 안전 ZONE</span>
+            <span class="label-hint">알림톡: 이름 + 시간 · 패시브 스트레칭 · 10분 전 안전 ZONE</span>
           </label>
           <input id="c-place" type="text" value="작전이음길 · 가현근린공원 안전 ZONE" placeholder="행사 장소">
         </div>
@@ -2452,7 +2452,7 @@
     var next = normalizeStatus(status);
     var prevGroupId =
       b.alimStatus === "scheduled" ? String(b.alimGroupId || "").trim() : "";
-    // 취소·노쇼·완료면 남아 있는 5분 전 예약 알림톡은 취소
+    // 취소·노쇼·완료면 남아 있는 10분 전 예약 알림톡은 취소
     var shouldCancelAlim =
       !!prevGroupId && (next === "cancel" || next === "noshow" || next === "done");
     b.status = next;
@@ -2978,12 +2978,12 @@
   }
 
   function notifyAt(time) {
-    return new Date(slotDate(time).getTime() - 5 * 60 * 1000);
+    return new Date(slotDate(time).getTime() - 10 * 60 * 1000);
   }
 
-  /** 시작 5분 이내이거나 이미 지났으면 즉시 발송 */
+  /** 시작 10분 이내이거나 이미 지났으면 즉시 발송 */
   function shouldSendAlimtalkImmediate(time) {
-    return slotDate(time).getTime() - Date.now() <= 5 * 60 * 1000;
+    return slotDate(time).getTime() - Date.now() <= 10 * 60 * 1000;
   }
 
   function autoScheduleAlimtalkForSlot(time) {
@@ -3185,7 +3185,7 @@
     } else {
       line.className = "status-line warn";
       line.textContent = cfgReady()
-        ? "알림톡 미예약 · 저장 시 시작 5분 전으로 예약됩니다. (인천점 채널 · code.gs)"
+        ? "알림톡 미예약 · 저장 시 시작 10분 전으로 예약됩니다. (인천점 채널 · code.gs)"
         : "알림톡 설정 없음 · 템플릿/채널 ID를 확인해 주세요.";
     }
     openDrawer("edit");
@@ -3381,7 +3381,7 @@
           "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
           "#{시간}":
             time +
-            "\n· 패시브 스트레칭 체험 준비!\n· 5분 전입니다. 안전 ZONE 에서 만나요.\nㅤ\n활기찬 오후, 그리고"
+            "\n· 패시브 스트레칭 10분 전!\n· 5분 전까지, 안전 ZONE 에서 만나요.\nㅤ\n활기찬 오후, 그리고"
         }
       };
 
