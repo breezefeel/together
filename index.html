@@ -782,6 +782,25 @@
         <p class="slot-preview" id="slot-preview"></p>
       </div>
 
+      <div class="cfg-section">
+        <h3>알림톡 (솔라피)</h3>
+        <p class="hint" style="margin-bottom:8px">API 키·시크릿이 있어야 알림톡이 발송됩니다. 브라우저에만 저장됩니다.</p>
+        <div class="field">
+          <label for="c-apikey">API Key</label>
+          <input id="c-apikey" type="password" autocomplete="off" placeholder="솔라피 API Key">
+        </div>
+        <div class="field">
+          <label for="c-apisecret">API Secret</label>
+          <input id="c-apisecret" type="password" autocomplete="off" placeholder="솔라피 API Secret">
+        </div>
+        <div class="field">
+          <label for="c-from">발신번호 (선택)</label>
+          <input id="c-from" type="tel" inputmode="numeric" placeholder="01012345678">
+          <p class="hint">알림톡만 쓰면 비워도 됩니다.</p>
+        </div>
+        <p class="hint" id="solapi-ready-hint"></p>
+      </div>
+
       <div class="row-btns">
         <button type="button" class="btn soft" id="btn-cfg-reset">기본값으로</button>
         <button type="button" class="btn gold" id="btn-cfg-save">설정 저장</button>
@@ -1591,7 +1610,20 @@
       toast("예약 정보가 없습니다.");
       return;
     }
+    if (!digitsPhone(b.phone) || digitsPhone(b.phone).length < 10) {
+      toast("전화번호가 없어 알림톡을 보낼 수 없습니다.");
+      return;
+    }
+    if (!cfgReady()) {
+      toast("솔라피 API 키·시크릿을 설정에서 먼저 저장해 주세요.");
+      return;
+    }
+    if (!window.isSecureContext || !(window.crypto && crypto.subtle)) {
+      toast("알림톡은 https 또는 localhost에서만 발송됩니다. 파일로 열면 안 됩니다.");
+      return;
+    }
     if (!confirm(time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?")) return;
+    toast(time + " 알림톡 발송 중…");
     scheduleAlimtalk(time, { immediate: true }).catch(function () {});
   }
 
@@ -1599,7 +1631,10 @@
     selectEl.addEventListener("change", function () {
       if (selectEl.value === "alimtalk") {
         selectEl.value = normalizeStatus((booking(time) || {}).status);
-        sendAlimtalkNow(time);
+        // select change 직후 confirm이 막히는 브라우저 대비
+        setTimeout(function () {
+          sendAlimtalkNow(time);
+        }, 0);
         return;
       }
       setBookingStatus(time, selectEl.value);
@@ -2111,7 +2146,7 @@
       line.className = "status-line warn";
       line.textContent = cfgReady()
         ? "알림톡 미예약 · 저장 시 시작 5분 전으로 예약됩니다."
-        : "알림톡은 code.gs 연동 후 사용할 수 있습니다.";
+        : "알림톡 불가 · 설정에 솔라피 API Key·Secret을 저장해 주세요.";
     }
     openDrawer("edit");
     setTimeout(function () {
@@ -2134,6 +2169,15 @@
     document.getElementById("c-start").value = cfg.startTime || "10:00";
     document.getElementById("c-end").value = cfg.endTime || "16:45";
     document.getElementById("c-interval").value = String(cfg.intervalMin || 15);
+    document.getElementById("c-apikey").value = cfg.apiKey || "";
+    document.getElementById("c-apisecret").value = cfg.apiSecret || "";
+    document.getElementById("c-from").value = cfg.from || "";
+    var readyHint = document.getElementById("solapi-ready-hint");
+    if (readyHint) {
+      readyHint.textContent = cfgReady()
+        ? "알림톡 발송 준비됨 · 템플릿 " + (cfg.templateId || "")
+        : "API Key·Secret을 넣어야 알림톡 버튼이 동작합니다.";
+    }
     draftBreaks = normalizeBreaks(cfg.breaks).map(function (b) {
       return { start: b.start, end: b.end };
     });
@@ -2173,6 +2217,9 @@
     cfg.endTime = end;
     cfg.intervalMin = interval;
     cfg.breaks = breaks;
+    cfg.apiKey = document.getElementById("c-apikey").value.trim();
+    cfg.apiSecret = document.getElementById("c-apisecret").value.trim();
+    cfg.from = document.getElementById("c-from").value.replace(/\D/g, "");
     return true;
   }
 
@@ -2278,8 +2325,8 @@
     var b = booking(time);
     if (!b || !b.name) return Promise.reject(new Error("예약 정보가 없습니다."));
     if (!cfgReady()) {
-      toast(time + " 저장됨 · 알림톡은 code.gs 연동 후 발송됩니다");
-      return Promise.resolve(null);
+      toast("솔라피 API 키·시크릿이 없습니다. 설정에서 저장해 주세요.");
+      return Promise.reject(new Error("SOLAPI_NOT_CONFIGURED"));
     }
 
     var when = opts.immediate ? new Date() : notifyAt(time);
