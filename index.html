@@ -2552,30 +2552,14 @@
       toast("알림톡 템플릿/채널 설정이 없습니다.");
       return;
     }
-    var when = notifyAt(time);
-    var tooSoon = when.getTime() <= Date.now() + 15 * 1000;
-    if (tooSoon) {
-      if (
-        !confirm(
-          time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)"
-        )
-      ) {
-        return;
-      }
-      scheduleAlimtalk(time, { immediate: true }).catch(function () {});
-      return;
-    }
     if (
       !confirm(
-        time +
-          " · " +
-          b.name +
-          "님\n시작 5분 전 알림톡을 예약할까요?\n(리얼무브먼트 인천점 채널)"
+        time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)"
       )
     ) {
       return;
     }
-    scheduleAlimtalk(time, { immediate: false }).catch(function () {});
+    scheduleAlimtalk(time, { immediate: true }).catch(function () {});
   }
 
   function bindStatusSelect(selectEl, time) {
@@ -2687,7 +2671,9 @@
           }
           var b = booking(item.time);
           if (!b || !b.name) return;
-          return scheduleAlimtalk(item.time, { immediate: false });
+          return scheduleAlimtalk(item.time, {
+            immediate: shouldSendAlimtalkImmediate(item.time)
+          });
         })
         .catch(function () {});
     });
@@ -2934,17 +2920,7 @@
           toast(time + " 번호 변경 · 옛 알림톡 취소 실패(솔라피 확인)");
           return;
         }
-        var whenPh = notifyAt(time);
-        if (whenPh.getTime() <= Date.now() + 15 * 1000) return;
-        if (
-          !confirm(
-            time +
-              " · 번호가 바뀌었습니다\n새 번호로 시작 5분 전 알림톡을 다시 예약할까요?"
-          )
-        ) {
-          return;
-        }
-        scheduleAlimtalk(time, { immediate: false }).catch(function () {});
+        autoScheduleAlimtalkForSlot(time);
       });
     } else if (
       becameGuest &&
@@ -2952,23 +2928,7 @@
       cfgReady() &&
       (!prev.alimStatus || prev.alimStatus === "")
     ) {
-      var whenNew = notifyAt(time);
-      if (whenNew.getTime() > Date.now() + 15 * 1000) {
-        setTimeout(function () {
-          if (!booking(time) || !booking(time).name) return;
-          if (
-            !confirm(
-              time +
-                " · " +
-                data.name +
-                "님 예약 저장됨\n시작 5분 전 알림톡을 예약할까요?"
-            )
-          ) {
-            return;
-          }
-          scheduleAlimtalk(time, { immediate: false }).catch(function () {});
-        }, 0);
-      }
+      autoScheduleAlimtalkForSlot(time);
     }
   }
 
@@ -3019,6 +2979,25 @@
 
   function notifyAt(time) {
     return new Date(slotDate(time).getTime() - 5 * 60 * 1000);
+  }
+
+  /** 시작 5분 이내이거나 이미 지났으면 즉시 발송 */
+  function shouldSendAlimtalkImmediate(time) {
+    return slotDate(time).getTime() - Date.now() <= 5 * 60 * 1000;
+  }
+
+  function autoScheduleAlimtalkForSlot(time) {
+    var b = booking(time);
+    if (!b || !b.name) return Promise.resolve(null);
+    if (!cfgReady()) return Promise.resolve(null);
+    if (!digitsPhone(b.phone) || digitsPhone(b.phone).length < 10) {
+      return Promise.resolve(null);
+    }
+    return scheduleAlimtalk(time, {
+      immediate: shouldSendAlimtalkImmediate(time)
+    }).catch(function () {
+      return null;
+    });
   }
 
   function isSoon(time) {
@@ -3383,7 +3362,7 @@
     }
 
     var when = opts.immediate ? new Date() : notifyAt(time);
-    if (!opts.immediate && when.getTime() <= Date.now() + 15 * 1000) {
+    if (!opts.immediate && shouldSendAlimtalkImmediate(time)) {
       when = new Date();
       opts.immediate = true;
     }
