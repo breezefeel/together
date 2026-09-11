@@ -689,6 +689,10 @@
     background: var(--gold);
     color: #111;
   }
+  .sync-notice-actions .force {
+    background: #1F6B4A;
+    color: #fff;
+  }
   .sync-notice-actions .dismiss {
     background: rgba(255,255,255,.12);
     color: #F6F3EC;
@@ -1019,6 +1023,7 @@
     </div>
     <div class="sync-notice-actions">
       <button type="button" class="apply" id="sync-notice-apply">불러오기</button>
+      <button type="button" class="force" id="sync-notice-force">이 기기로 저장</button>
       <button type="button" class="dismiss" id="sync-notice-dismiss">닫기</button>
     </div>
   </div>
@@ -1030,12 +1035,15 @@
   var CFG_KEY = "rm_event_solapi_cfg_v1";
   var SYNC_REV_KEY = "rm_event_schedule_rev_v1";
   var SYNC_AVG_KEY = "rm_event_schedule_sync_avg_ms_v2";
+  var SYNC_DIRTY_KEY = "rm_event_schedule_dirty_v1";
   var GAS_URL = "https://script.google.com/macros/s/AKfycbwVJSc6rY5tcBSB1VaRi4DBEXGyUBr1ADFfs6QEA9Z9bu0G-0mdMAv374-MdPVYMnSaeQ/exec";
   var EVENT_DEFAULT_DATE = "2026-09-12";
   var PLACE_DEFAULT = "작전이음길 · 가현근린공원 안전 ZONE";
   var PROGRAM = "패시브 스트레칭";
   var SYNC_ETA_DEFAULT_MS = 5000;
   var SYNC_REQUEST_TIMEOUT_MS = 22000;
+  // abort ≈ UI watch: 서버에 이미 나간 요청과 재시도가 겹치지 않게 맞춤
+  var SYNC_ABORT_TIMEOUT_MS = SYNC_REQUEST_TIMEOUT_MS + 2500;
 
   var state = loadState();
   var cfg = loadCfg();
@@ -1046,6 +1054,14 @@
   var syncSkipPush = false;
   var syncCheckBusy = false;
   var syncNoticeRes = null;
+  var syncPushQueued = false;
+  var syncPushPendingForce = false;
+  var syncBusyForce = false;
+  var syncDayPushQueue = [];
+  var syncNeedCurrentAfterQueue = false;
+  var activeGasAbort = null;
+  var syncLocalDirty = loadSyncDirty();
+  var syncOpId = 0;
   var syncUi = {
     status: "idle",
     etaSec: 0,
@@ -1056,7 +1072,6 @@
     watchTimer: null,
     gen: 0
   };
-  var syncPushQueued = false;
   var lastActiveAt = Date.now();
   var resumeCheckCooldownUntil = 0;
   var IDLE_MS = 60 * 1000;
@@ -1227,6 +1242,25 @@
     if (day.breaks) cfg.breaks = normalizeBreaks(day.breaks);
   }
 
+  function dayPushKey(payload) {
+    return String((payload && payload.cfg && payload.cfg.eventDate) || "") || "undated";
+  }
+
+  function enqueueDayPush(payload) {
+    payload = payload || {
+      bookings: cloneBookings(state.bookings || {}),
+      cfg: syncableCfg()
+    };
+    var key = dayPushKey(payload);
+    for (var i = 0; i < syncDayPushQueue.length; i++) {
+      if (dayPushKey(syncDayPushQueue[i]) === key) {
+        syncDayPushQueue[i] = payload;
+        return;
+      }
+    }
+    syncDayPushQueue.push(payload);
+  }
+
   function switchEventDate(newDate, opts) {
     opts = opts || {};
     newDate = newDate || EVENT_DEFAULT_DATE;
@@ -1236,11 +1270,28 @@
       return false;
     }
     persistCurrentDay(oldDate);
+    var shouldSync = !opts.skipSync && !syncSkipPush;
+    if (shouldSync) {
+      hideSyncNotice();
+      setSyncDirtyFlag(true);
+      if (syncPushTimer) {
+        clearTimeout(syncPushTimer);
+        syncPushTimer = null;
+      }
+      // 이전 날짜를 큐에 넣고, 전환 후 현재 날짜도 이어서 올림
+      enqueueDayPush({
+        bookings: cloneBookings(state.bookings || {}),
+        cfg: syncableCfg()
+      });
+      syncNeedCurrentAfterQueue = true;
+      syncPushQueued = true;
+    }
     cfg.eventDate = newDate;
     var day = loadArchive()[newDate];
     applyDaySnapshot(day || null);
-    saveCfg({ skipSync: !!opts.skipSync });
-    saveState({ skipSync: !!opts.skipSync });
+    saveCfg({ skipSync: true });
+    saveState({ skipSync: true });
+    if (shouldSync) flushSheetPush();
     return true;
   }
 
@@ -1337,6 +1388,22 @@
     syncRevision = parseInt(rev, 10) || 0;
     try {
       localStorage.setItem(SYNC_REV_KEY, String(syncRevision));
+    } catch (e) {}
+  }
+
+  function loadSyncDirty() {
+    try {
+      return localStorage.getItem(SYNC_DIRTY_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setSyncDirtyFlag(on) {
+    syncLocalDirty = !!on;
+    try {
+      if (syncLocalDirty) localStorage.setItem(SYNC_DIRTY_KEY, "1");
+      else localStorage.removeItem(SYNC_DIRTY_KEY);
     } catch (e) {}
   }
 
@@ -1454,10 +1521,18 @@
       }, 250);
       syncUi.watchTimer = setTimeout(function () {
         if (syncUi.gen !== gen || syncUi.status !== "busy") return;
+        // 클라이언트만 중단 · 자동 재시도는 하지 않음(서버 응답과 겹치면 삭제 복구/충돌 위험)
+        syncOpId += 1;
+        if (syncBusyForce) syncPushPendingForce = true;
+        syncBusyForce = false;
         syncBusy = false;
+        try {
+          if (activeGasAbort) activeGasAbort.abort();
+        } catch (abortErr) {}
+        setSyncDirtyFlag(true);
+        syncPushQueued = true;
         endSyncUi(false);
-        toast("동기화 시간 초과 · 다시 눌러 주세요");
-        if (syncPushQueued) flushSheetPush();
+        toast("동기화 지연 · 동기화 버튼을 다시 눌러 주세요");
       }, SYNC_REQUEST_TIMEOUT_MS + 2000);
     } else if (status === "ok" || status === "err") {
       if (status === "ok" && syncUi.startedAt) {
@@ -1481,10 +1556,11 @@
   }
 
   function markSyncDirty() {
-    if (syncUi.status === "busy" || syncUi.status === "dirty") {
+    if (syncUi.status === "busy") {
       paintSyncButton();
       return;
     }
+    clearSyncHold();
     syncUi.status = "dirty";
     paintSyncButton();
   }
@@ -1493,6 +1569,16 @@
     opts = opts || {};
     if (opts.keepBusy) return;
     clearSyncWatch();
+    if (!ok && (syncLocalDirty || syncPushQueued)) {
+      // 실패 후에도 올릴 내용이 있으면 '대기'로 보이게
+      setSyncUi("err", opts);
+      clearSyncHold();
+      syncUi.holdTimer = setTimeout(function () {
+        syncUi.holdTimer = null;
+        if (syncUi.status === "err") markSyncDirty();
+      }, opts.holdMs || 1800);
+      return;
+    }
     setSyncUi(ok ? "ok" : "err", opts);
   }
 
@@ -1559,10 +1645,11 @@
     var body = JSON.stringify(payload || {});
     var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     var timedOut = false;
+    activeGasAbort = ctrl;
     var timer = setTimeout(function () {
       timedOut = true;
       if (ctrl) ctrl.abort();
-    }, SYNC_REQUEST_TIMEOUT_MS);
+    }, SYNC_ABORT_TIMEOUT_MS);
     var reqOpts = {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -1595,29 +1682,106 @@
       })
       .then(function (result) {
         clearTimeout(timer);
+        if (activeGasAbort === ctrl) activeGasAbort = null;
         return result;
       });
   }
 
-  function applyRemoteState(remoteState, revision) {
+  function daySnapshotFromRemoteDay(day, date) {
+    day = day || {};
+    var c = day.cfg || {};
+    return {
+      bookings: cloneBookings(day.bookings || {}),
+      place: c.place || PLACE_DEFAULT,
+      startTime: c.startTime || "10:00",
+      endTime: c.endTime || "16:45",
+      intervalMin: parseInt(c.intervalMin, 10) || 15,
+      breaks: normalizeBreaks(c.breaks),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function mergeRemoteDaysIntoArchive(days) {
+    if (!days || typeof days !== "object") return;
+    var arch = loadArchive();
+    var changed = false;
+    Object.keys(days).forEach(function (d) {
+      if (!d || d === "undated") return;
+      var snap = daySnapshotFromRemoteDay(days[d], d);
+      if (bookingCount(snap.bookings) === 0) {
+        if (arch[d]) {
+          delete arch[d];
+          changed = true;
+        }
+        return;
+      }
+      arch[d] = snap;
+      changed = true;
+    });
+    if (changed) saveArchive(arch);
+  }
+
+  function applyRemoteState(remoteState, revision, opts) {
+    opts = opts || {};
     syncSkipPush = true;
     try {
       persistCurrentDay(eventDateStr());
-      if (remoteState && remoteState.bookings && typeof remoteState.bookings === "object") {
-        state = { bookings: remoteState.bookings };
+      remoteState = remoteState || {};
+
+      if (remoteState.days && typeof remoteState.days === "object") {
+        mergeRemoteDaysIntoArchive(remoteState.days);
+        var want = eventDateStr();
+        if (remoteState.days[want]) {
+          applyDaySnapshot(daySnapshotFromRemoteDay(remoteState.days[want], want));
+          cfg.eventDate = want;
+        } else if (opts.replace && remoteState.activeDate && remoteState.days[remoteState.activeDate]) {
+          var ad = remoteState.activeDate;
+          if (ad && ad !== "undated") {
+            applyDaySnapshot(daySnapshotFromRemoteDay(remoteState.days[ad], ad));
+            cfg.eventDate = ad;
+          }
+        }
+        // 다른 날짜만 갱신된 경우: 보관함만 반영하고 현재 화면 유지
+      } else {
+        var remoteDate =
+          (remoteState.cfg && remoteState.cfg.eventDate) || eventDateStr();
+        if (remoteState.bookings && typeof remoteState.bookings === "object") {
+          if (remoteDate === eventDateStr() || opts.replace) {
+            state = { bookings: cloneBookings(remoteState.bookings) };
+            if (remoteState.cfg && typeof remoteState.cfg === "object") {
+              cfg = Object.assign(defaultCfg(), cfg, {
+                eventDate: remoteState.cfg.eventDate || cfg.eventDate,
+                place: remoteState.cfg.place || cfg.place,
+                startTime: remoteState.cfg.startTime || cfg.startTime,
+                endTime: remoteState.cfg.endTime || cfg.endTime,
+                intervalMin: parseInt(remoteState.cfg.intervalMin, 10) || cfg.intervalMin,
+                breaks: normalizeBreaks(remoteState.cfg.breaks)
+              });
+            }
+          } else if (remoteDate && remoteDate !== "undated") {
+            var arch2 = loadArchive();
+            arch2[remoteDate] = daySnapshotFromRemoteDay(
+              { bookings: remoteState.bookings, cfg: remoteState.cfg },
+              remoteDate
+            );
+            if (bookingCount(arch2[remoteDate].bookings) === 0) delete arch2[remoteDate];
+            saveArchive(arch2);
+          }
+        } else if (remoteState.cfg && typeof remoteState.cfg === "object") {
+          cfg = Object.assign(defaultCfg(), cfg, {
+            eventDate: remoteState.cfg.eventDate || cfg.eventDate,
+            place: remoteState.cfg.place || cfg.place,
+            startTime: remoteState.cfg.startTime || cfg.startTime,
+            endTime: remoteState.cfg.endTime || cfg.endTime,
+            intervalMin: parseInt(remoteState.cfg.intervalMin, 10) || cfg.intervalMin,
+            breaks: normalizeBreaks(remoteState.cfg.breaks)
+          });
+        }
       }
-      if (remoteState && remoteState.cfg && typeof remoteState.cfg === "object") {
-        cfg = Object.assign(defaultCfg(), cfg, {
-          eventDate: remoteState.cfg.eventDate || cfg.eventDate,
-          place: remoteState.cfg.place || cfg.place,
-          startTime: remoteState.cfg.startTime || cfg.startTime,
-          endTime: remoteState.cfg.endTime || cfg.endTime,
-          intervalMin: parseInt(remoteState.cfg.intervalMin, 10) || cfg.intervalMin,
-          breaks: normalizeBreaks(remoteState.cfg.breaks)
-        });
-        saveCfg({ skipSync: true });
-      }
+
+      saveCfg({ skipSync: true });
       saveState({ skipSync: true });
+      setSyncDirtyFlag(false);
       if (revision != null) saveSyncRevision(revision);
       updateMeta();
       renderBoard();
@@ -1627,8 +1791,13 @@
     }
   }
 
-  function queueSheetPush() {
+  function queueSheetPush(opts) {
+    opts = opts || {};
+    // 로컬이 바뀌면 예전에 받아 둔 '불러오기' 스냅샷은 무효
+    hideSyncNotice();
+    setSyncDirtyFlag(true);
     syncPushQueued = true;
+    if (opts.force) syncPushPendingForce = true;
     markSyncDirty();
     if (syncPushTimer) clearTimeout(syncPushTimer);
     syncPushTimer = setTimeout(function () {
@@ -1648,7 +1817,9 @@
       return;
     }
     syncPushQueued = false;
-    pushToSheet({ quiet: true, showUi: true });
+    var force = !!syncPushPendingForce;
+    syncPushPendingForce = false;
+    pushToSheet({ quiet: true, showUi: true, force: force });
   }
 
   function hideSyncNotice() {
@@ -1662,21 +1833,35 @@
     var el = document.getElementById("sync-notice");
     var text = document.getElementById("sync-notice-text");
     if (text) {
-      text.innerHTML = "다른 기기에 <b>최신 예약</b>이 있습니다. 불러올까요?";
+      text.innerHTML =
+        "시트와 내용이 다릅니다. <b>불러오기</b>는 시트로 맞추고, <b>이 기기로 저장</b>은 지금 화면(삭제·수정)을 시트에 올립니다.";
     }
     if (el) el.classList.add("on");
   }
 
   function applySyncNotice() {
+    if (
+      !confirm(
+        "시트의 예약으로 지금 화면을 바꿀까요?\n\n방금 삭제·수정한 내용이 다시 나타날 수 있습니다."
+      )
+    ) {
+      return Promise.resolve(null);
+    }
     if (!syncNoticeRes || !syncNoticeRes.state) {
       hideSyncNotice();
       return pullFromSheet({ quiet: false, replace: true });
     }
     var rev = parseInt(syncNoticeRes.revision, 10) || 0;
-    applyRemoteState(syncNoticeRes.state, rev);
+    applyRemoteState(syncNoticeRes.state, rev, { replace: true });
     hideSyncNotice();
-    toast("최신 예약으로 맞춤");
+    toast("시트 내용으로 맞춤");
     return Promise.resolve(syncNoticeRes);
+  }
+
+  function forcePushLocal() {
+    hideSyncNotice();
+    setSyncDirtyFlag(true);
+    return pushToSheet({ quiet: false, force: true, showUi: true });
   }
 
   function markUserActive() {
@@ -1697,11 +1882,13 @@
 
   function checkRemoteForUpdate() {
     if (syncCheckBusy || syncBusy) return Promise.resolve(null);
+    if (syncLocalDirty || syncPushQueued) return Promise.resolve(null);
     syncCheckBusy = true;
     return gasRequest({ action: "eventSchedulePull" })
       .then(function (res) {
         syncCheckBusy = false;
         if (!res || res.ok === false) return res;
+        if (syncLocalDirty || syncPushQueued) return res;
         var remoteRev = parseInt(res.revision, 10) || 0;
         if (!res.empty && remoteRev > syncRevision) {
           showSyncNotice(res);
@@ -1718,32 +1905,72 @@
     opts = opts || {};
     if (syncBusy) {
       syncPushQueued = true;
+      setSyncDirtyFlag(true);
+      if (opts.force) syncPushPendingForce = true;
       markSyncDirty();
       return Promise.resolve(null);
     }
     syncBusy = true;
+    var myOp = ++syncOpId;
     var showUi = !opts.quiet || !!opts.showUi;
+    var useForce = !!opts.force;
+    syncBusyForce = useForce;
     if (showUi) beginSyncUi({ kind: "single" });
+    var usedQueue = false;
+    var statePayload;
+    if (syncDayPushQueue.length) {
+      statePayload = syncDayPushQueue.shift();
+      usedQueue = true;
+    } else {
+      statePayload = {
+        bookings: state.bookings || {},
+        cfg: syncableCfg()
+      };
+    }
     var payload = {
       action: "eventSchedulePush",
       revision: syncRevision,
-      force: !!opts.force,
-      state: {
-        bookings: state.bookings || {},
-        cfg: syncableCfg()
-      }
+      force: useForce,
+      state: statePayload
     };
     return gasRequest(payload)
       .then(function (res) {
-        syncBusy = false;
+        var stale = myOp !== syncOpId;
+        if (!stale) {
+          syncBusy = false;
+          syncBusyForce = false;
+        }
+
+        if (stale) {
+          // 타임아웃으로 폐기된 응답: 큐 항목은 앞에 되돌림
+          if (usedQueue) {
+            syncDayPushQueue.unshift(statePayload);
+            syncNeedCurrentAfterQueue = true;
+          }
+          if (res && res.ok !== false && res.revision != null) {
+            var remoteRev = parseInt(res.revision, 10) || 0;
+            if (remoteRev > syncRevision) saveSyncRevision(remoteRev);
+          }
+          setSyncDirtyFlag(true);
+          syncPushQueued = true;
+          return res;
+        }
+
         if (!res || res.ok === false) {
+          if (usedQueue) {
+            syncDayPushQueue.unshift(statePayload);
+            syncNeedCurrentAfterQueue = true;
+          }
           if (res && res.conflict && res.state) {
+            syncPushQueued = false;
+            syncPushPendingForce = false;
             showSyncNotice(res);
             if (showUi) endSyncUi(false);
-            if (!opts.quiet) toast("다른 기기 내용이 더 최신입니다");
-            if (syncPushQueued) flushSheetPush();
+            if (!opts.quiet) toast("충돌 · 불러오기 또는 이 기기로 저장");
+            setSyncDirtyFlag(true);
             return res;
           }
+          setSyncDirtyFlag(true);
           if (showUi) endSyncUi(false);
           if (!opts.quiet) {
             var msg = (res && res.message) || "시트 저장 실패";
@@ -1756,7 +1983,20 @@
           if (syncPushQueued) flushSheetPush();
           return res;
         }
+
         if (res.revision != null) saveSyncRevision(res.revision);
+        if (syncDayPushQueue.length) {
+          setSyncDirtyFlag(true);
+          syncPushQueued = true;
+        } else if (syncNeedCurrentAfterQueue) {
+          syncNeedCurrentAfterQueue = false;
+          setSyncDirtyFlag(true);
+          syncPushQueued = true;
+        } else if (syncPushQueued) {
+          setSyncDirtyFlag(true);
+        } else {
+          setSyncDirtyFlag(false);
+        }
         hideSyncNotice();
         if (showUi) endSyncUi(true);
         if (!opts.quiet) toast("시트 동기화 완료");
@@ -1764,7 +2004,21 @@
         return res;
       })
       .catch(function () {
-        syncBusy = false;
+        var stale = myOp !== syncOpId;
+        if (!stale) {
+          syncBusy = false;
+          syncBusyForce = false;
+        }
+        if (usedQueue) {
+          syncDayPushQueue.unshift(statePayload);
+          syncNeedCurrentAfterQueue = true;
+        }
+        if (stale) {
+          setSyncDirtyFlag(true);
+          syncPushQueued = true;
+          return null;
+        }
+        setSyncDirtyFlag(true);
         if (showUi) endSyncUi(false);
         if (!opts.quiet) toast("시트 저장 실패");
         if (syncPushQueued) flushSheetPush();
@@ -1776,10 +2030,12 @@
     opts = opts || {};
     if (syncBusy && !opts.forceBusy) return Promise.resolve(null);
     syncBusy = true;
+    var myOp = ++syncOpId;
     if (!opts.quiet) beginSyncUi({ kind: "single" });
     else if (opts.showUi) beginSyncUi({ kind: "single" });
     return gasRequest({ action: "eventSchedulePull" })
       .then(function (res) {
+        if (myOp !== syncOpId) return res;
         syncBusy = false;
         if (!res || res.ok === false) {
           if (!opts.quiet || opts.showUi) {
@@ -1815,12 +2071,16 @@
           }
           return res;
         }
+        // 로컬에 미반영 수정이 있으면 시트로 덮지 않음 (수동 replace만 예외)
         var shouldApply =
-          opts.replace ||
-          remoteRev > syncRevision ||
-          (!hasLocalBookings() && !remoteEmpty);
+          !!opts.replace ||
+          (!syncLocalDirty &&
+            !syncPushQueued &&
+            (remoteRev > syncRevision || (!hasLocalBookings() && !remoteEmpty)));
         if (shouldApply) {
-          applyRemoteState(res.state || { bookings: {} }, remoteRev);
+          applyRemoteState(res.state || { bookings: {} }, remoteRev, {
+            replace: !!opts.replace
+          });
           hideSyncNotice();
           if (!opts.quiet) {
             endSyncUi(true);
@@ -1828,6 +2088,9 @@
           } else if (opts.showUi) {
             endSyncUi(true);
           }
+        } else if (syncLocalDirty || syncPushQueued) {
+          if (!opts.quiet || opts.showUi) endSyncUi(true);
+          if (!opts.replace) flushSheetPush();
         } else if (res.revision != null && remoteRev === syncRevision) {
           if (!opts.quiet || opts.showUi) endSyncUi(true);
         } else if (hasLocalBookings() && remoteRev < syncRevision) {
@@ -1844,6 +2107,7 @@
         return res;
       })
       .catch(function () {
+        if (myOp !== syncOpId) return null;
         syncBusy = false;
         if (!opts.quiet || opts.showUi) {
           endSyncUi(false);
@@ -1856,10 +2120,26 @@
   function manualSync() {
     hideSyncNotice();
     beginSyncUi({ kind: "roundtrip" });
-    return pullFromSheet({ quiet: false, replace: true, forceBusy: false }).then(function (res) {
-      if (res && res.ok !== false && !res.empty) return res;
-      if (syncBusy) return res;
-      return pushToSheet({ quiet: false, force: true });
+    var pending = syncLocalDirty || syncPushQueued;
+
+    if (pending) {
+      // 미저장 수정이 있으면 먼저 올리되, 충돌 시 사용자 선택(불러오기/이 기기로 저장)
+      return pushToSheet({ quiet: false, force: false, showUi: true }).then(function (pushed) {
+        if (pushed && pushed.conflict) return pushed;
+        if (pushed && pushed.ok === false) return pushed;
+        return pullFromSheet({ quiet: true, replace: false, showUi: false }).then(function () {
+          return pushed;
+        });
+      });
+    }
+
+    return pullFromSheet({ quiet: false, replace: false, showUi: true }).then(function (res) {
+      if (!res || res.ok === false) return res;
+      if (res.empty) {
+        if (syncBusy) return res;
+        return pushToSheet({ quiet: false, force: true });
+      }
+      return res;
     });
   }
 
@@ -2169,11 +2449,30 @@
   function setBookingStatus(time, status) {
     var b = booking(time);
     if (!b || !b.name) return;
-    b.status = normalizeStatus(status);
+    var next = normalizeStatus(status);
+    var prevGroupId =
+      b.alimStatus === "scheduled" ? String(b.alimGroupId || "").trim() : "";
+    // 취소·노쇼·완료면 남아 있는 5분 전 예약 알림톡은 취소
+    var shouldCancelAlim =
+      !!prevGroupId && (next === "cancel" || next === "noshow" || next === "done");
+    b.status = next;
     b.updatedAt = new Date().toISOString();
+    if (shouldCancelAlim) {
+      b.alimStatus = "";
+      b.alimAt = "";
+      b.alimGroupId = "";
+      b.alimError = "";
+    }
     state.bookings[time] = b;
     saveState();
     renderBoard();
+    if (shouldCancelAlim) {
+      cancelScheduledAlimtalk(prevGroupId).then(function (res) {
+        if (res && res.ok === false) {
+          toast(time + " 상태 변경 · 알림톡 예약 취소 실패(솔라피 확인)");
+        }
+      });
+    }
   }
 
   function statusOptionsHtml() {
@@ -2187,6 +2486,26 @@
     );
   }
 
+  function cancelScheduledAlimtalk(groupId) {
+    groupId = String(groupId || "").trim();
+    if (!groupId) return Promise.resolve({ ok: true, skipped: true });
+    return gasRequest({
+      action: "eventScheduleAlimtalkCancel",
+      groupId: groupId
+    }).then(function (res) {
+      if (!res || res.ok === false) {
+        if (/unknown action/i.test(String((res && res.message) || ""))) {
+          return {
+            ok: false,
+            message: "Apps Script 재배포 필요 (eventScheduleAlimtalkCancel)"
+          };
+        }
+        return res || { ok: false, message: "알림톡 예약 취소 실패" };
+      }
+      return res;
+    });
+  }
+
   function clearSlotBooking(time, opts) {
     opts = opts || {};
     var b = booking(time);
@@ -2198,11 +2517,24 @@
       var label = (b.name || "예약") + (b.phone ? " · " + formatPhone(b.phone) : "");
       if (!confirm(time + " · " + label + "\n이름·연락처를 삭제할까요?")) return false;
     }
+    var groupId = b.alimGroupId || "";
+    var wasScheduled = b.alimStatus === "scheduled" && !!groupId;
     delete state.bookings[time];
     saveState(); // 시트 동기화 큐에 올림
     renderBoard();
     renderSavedDates();
-    if (opts.toast !== false) toast(time + " 삭제 · 동기화 중");
+
+    if (wasScheduled) {
+      cancelScheduledAlimtalk(groupId).then(function (res) {
+        if (res && res.ok === false) {
+          toast(time + " 삭제됨 · 알림톡 예약 취소 실패(솔라피 확인)");
+        } else if (opts.toast !== false) {
+          toast(time + " 삭제 · 알림톡 예약 취소 · 동기화 중");
+        }
+      });
+    } else if (opts.toast !== false) {
+      toast(time + " 삭제 · 동기화 중");
+    }
     return true;
   }
 
@@ -2220,8 +2552,30 @@
       toast("알림톡 템플릿/채널 설정이 없습니다.");
       return;
     }
-    if (!confirm(time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)")) return;
-    scheduleAlimtalk(time, { immediate: true }).catch(function () {});
+    var when = notifyAt(time);
+    var tooSoon = when.getTime() <= Date.now() + 15 * 1000;
+    if (tooSoon) {
+      if (
+        !confirm(
+          time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)"
+        )
+      ) {
+        return;
+      }
+      scheduleAlimtalk(time, { immediate: true }).catch(function () {});
+      return;
+    }
+    if (
+      !confirm(
+        time +
+          " · " +
+          b.name +
+          "님\n시작 5분 전 알림톡을 예약할까요?\n(리얼무브먼트 인천점 채널)"
+      )
+    ) {
+      return;
+    }
+    scheduleAlimtalk(time, { immediate: false }).catch(function () {});
   }
 
   function bindStatusSelect(selectEl, time) {
@@ -2289,20 +2643,54 @@
     var fromB = cloneBooking(booking(fromTime));
     var toB = cloneBooking(booking(toTime));
     var now = new Date().toISOString();
+    var needReschedule = [];
+
+    function prepMoved(b, newTime) {
+      if (!b) return null;
+      b.updatedAt = now;
+      // 시간이 바뀌면 예전 Solapi 예약은 무효 → 취소 후 새 시각으로 재예약
+      if (b.alimStatus === "scheduled" && b.alimGroupId) {
+        needReschedule.push({
+          time: newTime,
+          groupId: String(b.alimGroupId || "").trim()
+        });
+        b.alimStatus = "";
+        b.alimAt = "";
+        b.alimGroupId = "";
+        b.alimError = "";
+      }
+      return b;
+    }
+
     if (toB) {
-      toB.updatedAt = now;
-      state.bookings[fromTime] = toB;
+      state.bookings[fromTime] = prepMoved(toB, fromTime);
     } else {
       delete state.bookings[fromTime];
     }
     if (fromB) {
-      fromB.updatedAt = now;
-      state.bookings[toTime] = fromB;
+      state.bookings[toTime] = prepMoved(fromB, toTime);
     } else {
       delete state.bookings[toTime];
     }
     saveState();
     renderBoard();
+
+    needReschedule.forEach(function (item) {
+      var cancelP = item.groupId
+        ? cancelScheduledAlimtalk(item.groupId)
+        : Promise.resolve({ ok: true, skipped: true });
+      cancelP
+        .then(function (res) {
+          if (res && res.ok === false && !res.soft && !res.skipped) {
+            toast(item.time + " 이동됨 · 알림톡 재예약 전 취소 실패");
+            return;
+          }
+          var b = booking(item.time);
+          if (!b || !b.name) return;
+          return scheduleAlimtalk(item.time, { immediate: false });
+        })
+        .catch(function () {});
+    });
     return true;
   }
 
@@ -2469,12 +2857,23 @@
     var hasAnything = hasGuest || !!data.note || !!(prev.alimStatus);
 
     if (!data.name && data.phone.length <= 3 && !data.note) {
-      if (prev.name || prev.note) {
+      if (prev.name || prev.note || prev.alimStatus) {
+        var gid = prev.alimStatus === "scheduled" ? String(prev.alimGroupId || "").trim() : "";
         delete state.bookings[time];
         saveState();
         updateRowStatus(row, time);
         renderStats();
-        if (opts.toast) toast(time + " 비움");
+        if (gid) {
+          cancelScheduledAlimtalk(gid).then(function (res) {
+            if (res && res.ok === false) {
+              toast(time + " 비움 · 알림톡 예약 취소 실패(솔라피 확인)");
+            } else if (opts.toast) {
+              toast(time + " 비움 · 알림톡 예약 취소");
+            }
+          });
+        } else if (opts.toast) {
+          toast(time + " 비움");
+        }
       }
       return;
     }
@@ -2490,16 +2889,26 @@
 
     if (!hasAnything && !hasGuest) return;
 
+    var becameGuest = hasGuest && !(prev.name && String(prev.name).trim());
+    var phoneChanged =
+      hasGuest &&
+      !becameGuest &&
+      digitsPhone(prev.phone || "") !== digitsPhone(data.phone || "") &&
+      digitsPhone(prev.phone || "").length >= 10;
+    var prevScheduledGid =
+      prev.alimStatus === "scheduled" ? String(prev.alimGroupId || "").trim() : "";
+    var clearAlimForPhone = phoneChanged && !!prevScheduledGid;
+
     state.bookings[time] = {
       name: data.name || "",
       phone: data.phone || "",
       status: hasGuest ? normalizeStatus(prev.status || "booked") : normalizeStatus(prev.status || "booked"),
       note: data.note || "",
       updatedAt: new Date().toISOString(),
-      alimStatus: prev.alimStatus || "",
-      alimAt: prev.alimAt || "",
-      alimGroupId: prev.alimGroupId || "",
-      alimError: prev.alimError || ""
+      alimStatus: clearAlimForPhone ? "" : prev.alimStatus || "",
+      alimAt: clearAlimForPhone ? "" : prev.alimAt || "",
+      alimGroupId: clearAlimForPhone ? "" : prev.alimGroupId || "",
+      alimError: clearAlimForPhone ? "" : prev.alimError || ""
     };
     if (!hasGuest && !data.note) {
       delete state.bookings[time];
@@ -2518,6 +2927,49 @@
       bindGuestDrag(timeEl, row, time);
     }
     if (opts.toast && hasGuest) toast(time + " 예약");
+
+    if (clearAlimForPhone) {
+      cancelScheduledAlimtalk(prevScheduledGid).then(function (res) {
+        if (res && res.ok === false) {
+          toast(time + " 번호 변경 · 옛 알림톡 취소 실패(솔라피 확인)");
+          return;
+        }
+        var whenPh = notifyAt(time);
+        if (whenPh.getTime() <= Date.now() + 15 * 1000) return;
+        if (
+          !confirm(
+            time +
+              " · 번호가 바뀌었습니다\n새 번호로 시작 5분 전 알림톡을 다시 예약할까요?"
+          )
+        ) {
+          return;
+        }
+        scheduleAlimtalk(time, { immediate: false }).catch(function () {});
+      });
+    } else if (
+      becameGuest &&
+      hasGuest &&
+      cfgReady() &&
+      (!prev.alimStatus || prev.alimStatus === "")
+    ) {
+      var whenNew = notifyAt(time);
+      if (whenNew.getTime() > Date.now() + 15 * 1000) {
+        setTimeout(function () {
+          if (!booking(time) || !booking(time).name) return;
+          if (
+            !confirm(
+              time +
+                " · " +
+                data.name +
+                "님 예약 저장됨\n시작 5분 전 알림톡을 예약할까요?"
+            )
+          ) {
+            return;
+          }
+          scheduleAlimtalk(time, { immediate: false }).catch(function () {});
+        }, 0);
+      }
+    }
   }
 
   function bindInlinePhone(row) {
@@ -2813,9 +3265,8 @@
     var breaks = normalizeBreaks(draftBreaks);
 
     if (newDate !== oldDate) {
-      persistCurrentDay(oldDate);
-      cfg.eventDate = newDate;
-      applyDaySnapshot(loadArchive()[newDate] || null);
+      // 날짜 보관·시트 푸시는 switchEventDate와 동일 경로
+      switchEventDate(newDate);
     }
 
     cfg.place = place;
@@ -2847,27 +3298,53 @@
       return null;
     }
     var prev = booking(time) || {};
+    var nextStatus = normalizeStatus(status || "booked");
+    var prevGid =
+      prev.alimStatus === "scheduled" ? String(prev.alimGroupId || "").trim() : "";
+    var phoneChanged =
+      digitsPhone(prev.phone || "") !== digitsPhone(phone || "") &&
+      digitsPhone(prev.phone || "").length >= 10;
+    var statusStopsAlim =
+      nextStatus === "cancel" || nextStatus === "noshow" || nextStatus === "done";
+    var shouldCancelAlim = !!prevGid && (statusStopsAlim || phoneChanged);
+
     state.bookings[time] = {
       name: name,
       phone: phone,
-      status: normalizeStatus(status || "booked"),
+      status: nextStatus,
       note: note,
       updatedAt: new Date().toISOString(),
-      alimStatus: prev.alimStatus || "",
-      alimAt: prev.alimAt || "",
-      alimGroupId: prev.alimGroupId || "",
-      alimError: prev.alimError || ""
+      alimStatus: shouldCancelAlim ? "" : prev.alimStatus || "",
+      alimAt: shouldCancelAlim ? "" : prev.alimAt || "",
+      alimGroupId: shouldCancelAlim ? "" : prev.alimGroupId || "",
+      alimError: shouldCancelAlim ? "" : prev.alimError || ""
     };
     saveState();
     renderBoard();
-    if (opts.schedule) {
-      return scheduleAlimtalk(time, { immediate: !!opts.immediate }).then(function () {
-        openEdit(time);
-        return state.bookings[time];
-      });
+
+    var cancelP = shouldCancelAlim
+      ? cancelScheduledAlimtalk(prevGid).then(function (res) {
+          if (res && res.ok === false) {
+            toast(time + " 저장됨 · 알림톡 예약 취소 실패(솔라피 확인)");
+          }
+          return res;
+        })
+      : Promise.resolve({ ok: true, skipped: true });
+
+    if (opts.schedule && !statusStopsAlim) {
+      return cancelP
+        .then(function () {
+          return scheduleAlimtalk(time, { immediate: !!opts.immediate });
+        })
+        .then(function () {
+          openEdit(time);
+          return state.bookings[time];
+        });
     }
-    openEdit(time);
-    return Promise.resolve(state.bookings[time]);
+    return cancelP.then(function () {
+      openEdit(time);
+      return state.bookings[time];
+    });
   }
 
   function clearBooking() {
@@ -2899,47 +3376,76 @@
       return Promise.reject(new Error("ALIMTALK_NOT_CONFIGURED"));
     }
 
+    var phone = digitsPhone(b.phone);
+    if (!phone || phone.length < 10) {
+      toast("전화번호가 없어 알림톡을 보낼 수 없습니다.");
+      return Promise.reject(new Error("NO_PHONE"));
+    }
+
     var when = opts.immediate ? new Date() : notifyAt(time);
     if (!opts.immediate && when.getTime() <= Date.now() + 15 * 1000) {
       when = new Date();
       opts.immediate = true;
     }
 
-    var payload = {
-      action: "eventScheduleAlimtalkSend",
-      to: b.phone,
-      pfId: cfg.pfId,
-      templateId: cfg.templateId,
-      immediate: !!opts.immediate,
-      scheduledDate: opts.immediate ? "" : toIsoKst(when),
-      variables: {
-        "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
-        "#{시간}":
-          time +
-          "\n· 패시브 스트레칭 체험 준비!\n· 5분 전입니다. 안전 ZONE 에서 만나요.\nㅤ\n활기찬 오후, 그리고"
-      }
-    };
+    var prevGroupId = b.alimStatus === "scheduled" ? String(b.alimGroupId || "").trim() : "";
 
-    return gasRequest(payload, true).then(function (data) {
-      if (!data || data.ok === false) {
-        var msg =
-          (data && (data.message || data.errorMessage || data.error)) ||
-          "알림톡 발송 실패";
-        if (/unknown action/i.test(String(msg))) {
-          msg = "Apps Script를 다시 배포해 주세요 (eventScheduleAlimtalkSend)";
+    function doSend() {
+      var payload = {
+        action: "eventScheduleAlimtalkSend",
+        to: phone,
+        pfId: cfg.pfId,
+        templateId: cfg.templateId,
+        immediate: !!opts.immediate,
+        scheduledDate: opts.immediate ? "" : toIsoKst(when),
+        variables: {
+          "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
+          "#{시간}":
+            time +
+            "\n· 패시브 스트레칭 체험 준비!\n· 5분 전입니다. 안전 ZONE 에서 만나요.\nㅤ\n활기찬 오후, 그리고"
         }
-        throw new Error(msg);
-      }
-      var groupId = (data && data.groupId) || "";
-      state.bookings[time].alimStatus = opts.immediate ? "sent" : "scheduled";
-      state.bookings[time].alimAt = toIsoKst(when).replace("T", " ").replace("+09:00", "");
-      state.bookings[time].alimGroupId = groupId;
-      state.bookings[time].alimError = "";
-      saveState();
-      renderBoard();
-      toast(opts.immediate ? (time + " 알림톡 즉시 발송") : (time + " 알림톡 " + state.bookings[time].alimAt + " 예약"));
-      return data;
-    }).catch(function (err) {
+      };
+
+      return gasRequest(payload).then(function (data) {
+        if (!data || data.ok === false) {
+          var msg =
+            (data && (data.message || data.errorMessage || data.error)) ||
+            "알림톡 발송 실패";
+          if (/unknown action/i.test(String(msg))) {
+            msg = "Apps Script를 다시 배포해 주세요 (eventScheduleAlimtalkSend)";
+          }
+          throw new Error(msg);
+        }
+        var groupId = (data && data.groupId) || "";
+        if (!state.bookings[time]) return data;
+        state.bookings[time].alimStatus = opts.immediate ? "sent" : "scheduled";
+        state.bookings[time].alimAt = toIsoKst(when).replace("T", " ").replace("+09:00", "");
+        state.bookings[time].alimGroupId = groupId;
+        state.bookings[time].alimError = "";
+        saveState();
+        renderBoard();
+        toast(opts.immediate ? (time + " 알림톡 즉시 발송") : (time + " 알림톡 " + state.bookings[time].alimAt + " 예약"));
+        return data;
+      });
+    }
+
+    var chain = prevGroupId
+      ? cancelScheduledAlimtalk(prevGroupId)
+          .catch(function (err) {
+            return { ok: false, message: (err && err.message) || "알림톡 예약 취소 실패" };
+          })
+          .then(function (cancelRes) {
+            if (cancelRes && cancelRes.ok === false && !cancelRes.skipped && !cancelRes.soft) {
+              throw new Error(
+                cancelRes.message ||
+                  "기존 알림톡 예약을 취소하지 못해 새 알림톡을 보내지 않았습니다"
+              );
+            }
+            return doSend();
+          })
+      : doSend();
+
+    return chain.catch(function (err) {
       if (state.bookings[time]) {
         state.bookings[time].alimError = String(err.message || err);
         saveState();
@@ -3018,6 +3524,9 @@
   document.getElementById("sync-notice-apply").addEventListener("click", function () {
     applySyncNotice();
   });
+  document.getElementById("sync-notice-force").addEventListener("click", function () {
+    forcePushLocal();
+  });
   document.getElementById("sync-notice-dismiss").addEventListener("click", function () {
     hideSyncNotice();
     resumeCheckCooldownUntil = Date.now() + IDLE_MS;
@@ -3036,8 +3545,9 @@
   document.getElementById("btn-cfg-save").addEventListener("click", function () {
     var prevDate = eventDateStr();
     if (!readCfgForm()) return;
+    // 날짜 전환 push는 switchEventDate가 처리. 여기서는 폼에서 덮어쓴 설정까지 반영해 한 번 더 큐.
     saveCfg();
-    saveState();
+    saveState({ skipSync: true });
     fillCfgForm();
     updateMeta();
     renderBoard();
@@ -3089,6 +3599,10 @@
   updateMeta();
   renderBoard();
   paintSyncButton();
+  if (syncLocalDirty) {
+    markSyncDirty();
+    syncPushQueued = true;
+  }
   pullFromSheet({ quiet: true, replace: false, showUi: true });
 
   ["pointerdown", "touchstart", "keydown", "focusin"].forEach(function (type) {
