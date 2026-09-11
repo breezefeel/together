@@ -2179,11 +2179,31 @@
   function statusOptionsHtml() {
     return (
       '<option value="booked">예약</option>' +
+      '<option value="delete">삭제</option>' +
       '<option value="done">완료</option>' +
       '<option value="cancel">취소</option>' +
       '<option value="noshow">노쇼</option>' +
       '<option value="alimtalk">알림톡</option>'
     );
+  }
+
+  function clearSlotBooking(time, opts) {
+    opts = opts || {};
+    var b = booking(time);
+    if (!b || (!b.name && !b.phone && !b.note)) {
+      toast(time + " 이미 비어 있습니다");
+      return false;
+    }
+    if (opts.confirm !== false) {
+      var label = (b.name || "예약") + (b.phone ? " · " + formatPhone(b.phone) : "");
+      if (!confirm(time + " · " + label + "\n이름·연락처를 삭제할까요?")) return false;
+    }
+    delete state.bookings[time];
+    saveState(); // 시트 동기화 큐에 올림
+    renderBoard();
+    renderSavedDates();
+    if (opts.toast !== false) toast(time + " 삭제 · 동기화 중");
+    return true;
   }
 
   function sendAlimtalkNow(time) {
@@ -2208,9 +2228,15 @@
     selectEl.addEventListener("change", function () {
       if (selectEl.value === "alimtalk") {
         selectEl.value = normalizeStatus((booking(time) || {}).status);
-        // select change 직후 confirm이 막히는 브라우저 대비
         setTimeout(function () {
           sendAlimtalkNow(time);
+        }, 0);
+        return;
+      }
+      if (selectEl.value === "delete") {
+        selectEl.value = normalizeStatus((booking(time) || {}).status);
+        setTimeout(function () {
+          clearSlotBooking(time);
         }, 0);
         return;
       }
@@ -2846,10 +2872,7 @@
 
   function clearBooking() {
     if (!currentTime) return;
-    if (!confirm(currentTime + " 칸을 비울까요?")) return;
-    delete state.bookings[currentTime];
-    saveState();
-    renderBoard();
+    if (!clearSlotBooking(currentTime)) return;
     closeDrawer();
   }
 
