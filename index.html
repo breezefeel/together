@@ -54,6 +54,147 @@
     font-size: 11px; font-weight: 600; color: #B8B2A6;
   }
   .top .meta strong { color: #F3F0E8; font-weight: 800; }
+  .meta-date-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 0;
+    background: transparent;
+    color: #F3F0E8;
+    font: inherit;
+    font-weight: 800;
+    padding: 2px 6px 2px 4px;
+    margin: -2px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(217,194,138,.35);
+  }
+  .meta-date-btn:active { background: rgba(255,255,255,.08); }
+  .meta-date-btn::after {
+    content: "";
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--gold-2);
+    margin-left: 2px;
+  }
+
+  .date-picker-bg {
+    position: fixed; inset: 0;
+    z-index: 90;
+    background: rgba(17,17,17,.35);
+    display: none;
+  }
+  .date-picker-bg.on { display: block; }
+  .date-picker {
+    position: fixed;
+    left: 50%;
+    top: 72px;
+    transform: translateX(-50%);
+    z-index: 91;
+    width: min(340px, calc(100vw - 24px));
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.28);
+    padding: 14px 14px 12px;
+    display: none;
+  }
+  .date-picker.on { display: block; }
+  .dp-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .dp-head h3 {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: -.02em;
+  }
+  .dp-nav {
+    display: flex;
+    gap: 4px;
+  }
+  .dp-nav button {
+    width: 32px; height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: #F0EBE3;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 800;
+    font-family: inherit;
+  }
+  .dp-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+  .dp-week span {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--mute);
+    padding: 4px 0;
+  }
+  .dp-week span:first-child { color: #B91C1C; }
+  .dp-week span:last-child { color: #1D4ED8; }
+  .dp-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .dp-grid button {
+    position: relative;
+    border: 0;
+    background: transparent;
+    border-radius: 10px;
+    aspect-ratio: 1;
+    min-height: 38px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .dp-grid button.muted { color: #C4BDB3; font-weight: 600; }
+  .dp-grid button.sun { color: #B91C1C; }
+  .dp-grid button.sat { color: #1D4ED8; }
+  .dp-grid button.muted.sun,
+  .dp-grid button.muted.sat { color: #C4BDB3; }
+  .dp-grid button.selected {
+    background: #111;
+    color: #fff !important;
+  }
+  .dp-grid button.has-book::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 5px;
+    width: 5px; height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+  .dp-grid button.selected.has-book::after {
+    background: var(--gold-2);
+  }
+  .dp-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--mute);
+  }
+  .dp-legend i {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
   .top-actions {
     margin-left: auto;
     display: flex; gap: 6px; flex-wrap: wrap;
@@ -67,6 +208,31 @@
   .top-actions button.ghost {
     background: transparent; color: var(--gold-2);
     box-shadow: inset 0 0 0 1px rgba(217,194,138,.45);
+  }
+  #btn-sync {
+    min-width: 7.5em;
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+  }
+  #btn-sync.sync-idle {
+    background: transparent;
+    color: var(--gold-2);
+    box-shadow: inset 0 0 0 1px rgba(217,194,138,.45);
+  }
+  #btn-sync.sync-busy {
+    background: #B45309;
+    color: #fff;
+    box-shadow: none;
+    pointer-events: none;
+  }
+  #btn-sync.sync-ok {
+    background: var(--ok);
+    color: #fff;
+    box-shadow: none;
+  }
+  #btn-sync.sync-err {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: none;
   }
 
   .ctrl-bar {
@@ -354,18 +520,28 @@
   .drawer-bg.on { display: block; }
   .drawer {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    display: flex;
+    flex-direction: column;
     background: var(--paper);
     border-radius: 18px 18px 0 0;
-    padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
-    max-height: min(92vh, 720px);
-    overflow: auto;
+    padding: 0;
+    max-height: min(92dvh, 92vh);
+    overflow: hidden;
     transform: translateY(110%);
     transition: transform .22s ease;
+    overscroll-behavior: contain;
   }
   .drawer.on { transform: translateY(0); }
   .drawer-head {
+    flex: 0 0 auto;
     display: flex; align-items: center; justify-content: space-between;
-    gap: 10px; margin-bottom: 12px;
+    gap: 10px;
+    padding: 14px 16px 12px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 2;
   }
   .drawer-head h2 {
     font-size: 18px; font-weight: 900; letter-spacing: -.03em;
@@ -374,6 +550,17 @@
     border: 0; background: transparent;
     font-size: 22px; line-height: 1; color: var(--mute); padding: 4px 8px;
   }
+  .panel {
+    display: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .panel.on { display: block; }
   .field { margin-bottom: 10px; }
   .field label {
     display: block;
@@ -440,7 +627,9 @@
     margin-bottom: 6px;
   }
   .toast {
-    position: fixed; left: 50%; bottom: 24px; z-index: 80;
+    position: fixed; left: 50%;
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    z-index: 80;
     transform: translateX(-50%) translateY(120%);
     background: #111; color: #fff;
     padding: 10px 14px; border-radius: 999px;
@@ -453,7 +642,8 @@
 
   .sync-notice {
     position: fixed;
-    left: 12px; right: 12px; bottom: calc(18px + env(safe-area-inset-bottom));
+    left: 12px; right: 12px;
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     z-index: 85;
     display: none;
     background: #111;
@@ -509,8 +699,6 @@
     background: #EFEBE3; color: var(--mute);
   }
   .tabs button.on { background: #111; color: #fff; }
-  .panel { display: none; }
-  .panel.on { display: block; }
 
   .tpl-box {
     background: #fff;
@@ -645,7 +833,13 @@
       margin: 0 auto;
     }
     .ctrl-bar { max-width: 980px; margin-left: auto; margin-right: auto; }
-    .drawer { left: 50%; right: auto; width: min(520px, 100%); transform: translate(-50%, 110%); }
+    .drawer {
+      left: 50%;
+      right: auto;
+      width: min(520px, 100%);
+      max-height: min(88dvh, 88vh, 760px);
+      transform: translate(-50%, 110%);
+    }
     .drawer.on { transform: translate(-50%, 0); }
   }
 </style>
@@ -658,12 +852,12 @@
         <h1>체험 스케줄 · 스텝용</h1>
       </div>
       <div class="top-actions">
-        <button type="button" class="ghost" id="btn-sync" title="구글 시트 행사용 탭과 맞추기">동기화</button>
+        <button type="button" class="ghost sync-idle" id="btn-sync" title="구글 시트 행사용 탭과 맞추기">동기화</button>
         <button type="button" class="ghost" id="btn-settings">설정</button>
         <button type="button" id="btn-export">내보내기</button>
       </div>
       <div class="meta">
-        <span>날짜 <strong id="meta-date">9월 12일 (토)</strong></span>
+        <span>날짜 <button type="button" class="meta-date-btn" id="meta-date" title="날짜 선택">9월 12일 (토)</button></span>
         <span>장소 <strong id="meta-place">작전이음길 · 가현근린공원 안전 ZONE</strong></span>
       </div>
     </div>
@@ -797,6 +991,21 @@
   </aside>
 
   <div class="toast" id="toast" role="status"></div>
+  <div class="date-picker-bg" id="date-picker-bg"></div>
+  <div class="date-picker" id="date-picker" role="dialog" aria-label="날짜 선택">
+    <div class="dp-head">
+      <h3 id="dp-title">2026년 9월</h3>
+      <div class="dp-nav">
+        <button type="button" id="dp-prev" aria-label="이전 달">‹</button>
+        <button type="button" id="dp-next" aria-label="다음 달">›</button>
+      </div>
+    </div>
+    <div class="dp-week" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="dp-grid" id="dp-grid"></div>
+    <div class="dp-legend"><i></i> 예약이 저장된 날짜</div>
+  </div>
   <div class="sync-notice" id="sync-notice" role="status" aria-live="polite">
     <div class="sync-notice-text" id="sync-notice-text">
       다른 기기에 <b>최신 예약</b>이 있습니다
@@ -813,10 +1022,12 @@
   var ARCHIVE_KEY = "rm_event_schedule_archive_v1";
   var CFG_KEY = "rm_event_solapi_cfg_v1";
   var SYNC_REV_KEY = "rm_event_schedule_rev_v1";
+  var SYNC_AVG_KEY = "rm_event_schedule_sync_avg_ms_v1";
   var GAS_URL = "https://script.google.com/macros/s/AKfycbwVJSc6rY5tcBSB1VaRi4DBEXGyUBr1ADFfs6QEA9Z9bu0G-0mdMAv374-MdPVYMnSaeQ/exec";
   var EVENT_DEFAULT_DATE = "2026-09-12";
   var PLACE_DEFAULT = "작전이음길 · 가현근린공원 안전 ZONE";
   var PROGRAM = "패시브 스트레칭";
+  var SYNC_ETA_DEFAULT_MS = 9000;
 
   var state = loadState();
   var cfg = loadCfg();
@@ -827,6 +1038,13 @@
   var syncSkipPush = false;
   var syncCheckBusy = false;
   var syncNoticeRes = null;
+  var syncUi = {
+    status: "idle",
+    etaSec: 0,
+    timer: null,
+    startedAt: 0,
+    holdTimer: null
+  };
   var lastActiveAt = Date.now();
   var resumeCheckCooldownUntil = 0;
   var IDLE_MS = 60 * 1000;
@@ -834,6 +1052,7 @@
   var filter = "all";
   var toastTimer = null;
   var draftBreaks = [];
+  var datePickerMonth = null; // Date at 1st of visible month
   var drag = {
     fromTime: null,
     active: false,
@@ -1106,6 +1325,98 @@
     } catch (e) {}
   }
 
+  function loadSyncAvgMs() {
+    try {
+      var n = parseInt(localStorage.getItem(SYNC_AVG_KEY) || "", 10);
+      if (!isNaN(n) && n >= 2500 && n <= 45000) return n;
+    } catch (e) {}
+    return SYNC_ETA_DEFAULT_MS;
+  }
+
+  function rememberSyncDuration(ms) {
+    if (!ms || ms < 800 || ms > 60000) return;
+    var prev = loadSyncAvgMs();
+    var next = Math.round(prev * 0.65 + ms * 0.35);
+    try {
+      localStorage.setItem(SYNC_AVG_KEY, String(next));
+    } catch (e) {}
+  }
+
+  function clearSyncCountdown() {
+    if (syncUi.timer) {
+      clearInterval(syncUi.timer);
+      syncUi.timer = null;
+    }
+  }
+
+  function clearSyncHold() {
+    if (syncUi.holdTimer) {
+      clearTimeout(syncUi.holdTimer);
+      syncUi.holdTimer = null;
+    }
+  }
+
+  function paintSyncButton() {
+    var btn = document.getElementById("btn-sync");
+    if (!btn) return;
+    btn.classList.remove("sync-idle", "sync-busy", "sync-ok", "sync-err", "ghost");
+    if (syncUi.status === "busy") {
+      btn.classList.add("sync-busy");
+      btn.textContent = "동기화 " + Math.max(1, syncUi.etaSec) + "초";
+      btn.title = "시트와 맞추는 중";
+    } else if (syncUi.status === "ok") {
+      btn.classList.add("sync-ok");
+      btn.textContent = "동기화 완료";
+      btn.title = "시트와 맞췄습니다";
+    } else if (syncUi.status === "err") {
+      btn.classList.add("sync-err");
+      btn.textContent = "동기화 실패";
+      btn.title = "다시 눌러 재시도";
+    } else {
+      btn.classList.add("ghost", "sync-idle");
+      btn.textContent = "동기화";
+      btn.title = "구글 시트 행사용 탭과 맞추기";
+    }
+  }
+
+  function setSyncUi(status, opts) {
+    opts = opts || {};
+    clearSyncHold();
+    if (status !== "busy") clearSyncCountdown();
+    syncUi.status = status || "idle";
+    if (status === "busy") {
+      syncUi.startedAt = Date.now();
+      syncUi.etaSec = Math.max(3, Math.ceil((opts.etaMs || loadSyncAvgMs()) / 1000));
+      clearSyncCountdown();
+      syncUi.timer = setInterval(function () {
+        if (syncUi.etaSec > 1) syncUi.etaSec -= 1;
+        paintSyncButton();
+      }, 1000);
+    } else if (status === "ok" || status === "err") {
+      if (status === "ok" && syncUi.startedAt) {
+        rememberSyncDuration(Date.now() - syncUi.startedAt);
+      }
+      syncUi.holdTimer = setTimeout(function () {
+        syncUi.holdTimer = null;
+        if (syncUi.status === status) {
+          syncUi.status = "idle";
+          paintSyncButton();
+        }
+      }, opts.holdMs || 2200);
+    }
+    paintSyncButton();
+  }
+
+  function beginSyncUi() {
+    if (syncUi.status !== "busy") setSyncUi("busy");
+  }
+
+  function endSyncUi(ok, opts) {
+    opts = opts || {};
+    if (opts.keepBusy) return;
+    setSyncUi(ok ? "ok" : "err");
+  }
+
   function loadCfg() {
     try {
       var raw = localStorage.getItem(CFG_KEY);
@@ -1164,25 +1475,27 @@
     return false;
   }
 
-  function gasRequest(payload, forcePost) {
+  function gasRequest(payload) {
+    // Apps Script는 모바일 Safari에서 GET+리다이렉트가 자주 깨지므로 항상 POST
     var body = JSON.stringify(payload || {});
-    var usePost = !!forcePost || encodeURIComponent(body).length > 1800;
-    var req = usePost
-      ? fetch(GAS_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: body
-        })
-      : fetch(
-          GAS_URL + (GAS_URL.indexOf("?") >= 0 ? "&" : "?") + "data=" + encodeURIComponent(body)
-        );
-    return req
+    return fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: body,
+      redirect: "follow",
+      credentials: "omit"
+    })
       .then(function (res) {
         return res.text();
       })
       .then(function (text) {
+        var trimmed = String(text || "").trim();
+        if (!trimmed) return { ok: false, message: "시트 응답이 비었습니다" };
+        if (trimmed.charAt(0) === "<") {
+          return { ok: false, message: "시트 연결 실패(로그인·배포 확인)" };
+        }
         try {
-          return JSON.parse(text);
+          return JSON.parse(trimmed);
         } catch (e1) {
           return { ok: false, message: "시트 응답 오류" };
         }
@@ -1274,7 +1587,7 @@
   function checkRemoteForUpdate() {
     if (syncCheckBusy || syncBusy) return Promise.resolve(null);
     syncCheckBusy = true;
-    return gasRequest({ action: "eventSchedulePull" }, false)
+    return gasRequest({ action: "eventSchedulePull" })
       .then(function (res) {
         syncCheckBusy = false;
         if (!res || res.ok === false) return res;
@@ -1297,6 +1610,8 @@
       return Promise.resolve(null);
     }
     syncBusy = true;
+    var showUi = !opts.quiet || !!opts.showUi;
+    if (showUi) beginSyncUi();
     var payload = {
       action: "eventSchedulePush",
       revision: syncRevision,
@@ -1306,15 +1621,17 @@
         cfg: syncableCfg()
       }
     };
-    return gasRequest(payload, true)
+    return gasRequest(payload)
       .then(function (res) {
         syncBusy = false;
         if (!res || res.ok === false) {
           if (res && res.conflict && res.state) {
             showSyncNotice(res);
+            if (showUi) endSyncUi(false);
             if (!opts.quiet) toast("다른 기기 내용이 더 최신입니다");
             return res;
           }
+          if (showUi) endSyncUi(false);
           if (!opts.quiet) {
             var msg = (res && res.message) || "시트 저장 실패";
             if (/unknown action/i.test(String(msg))) {
@@ -1327,11 +1644,13 @@
         }
         if (res.revision != null) saveSyncRevision(res.revision);
         hideSyncNotice();
+        if (showUi) endSyncUi(true);
         if (!opts.quiet) toast("시트 동기화 완료");
         return res;
       })
       .catch(function () {
         syncBusy = false;
+        if (showUi) endSyncUi(false);
         if (!opts.quiet) toast("시트 저장 실패");
         return null;
       });
@@ -1341,16 +1660,21 @@
     opts = opts || {};
     if (syncBusy && !opts.forceBusy) return Promise.resolve(null);
     syncBusy = true;
-    return gasRequest({ action: "eventSchedulePull" }, false)
+    if (!opts.quiet) beginSyncUi();
+    else if (opts.showUi) beginSyncUi();
+    return gasRequest({ action: "eventSchedulePull" })
       .then(function (res) {
         syncBusy = false;
         if (!res || res.ok === false) {
-          if (!opts.quiet) {
-            var msg = (res && res.message) || "시트 불러오기 실패";
-            if (/unknown action/i.test(String(msg))) {
-              toast("Apps Script를 다시 배포해 주세요");
-            } else {
-              toast(msg);
+          if (!opts.quiet || opts.showUi) {
+            endSyncUi(false);
+            if (!opts.quiet) {
+              var msg = (res && res.message) || "시트 불러오기 실패";
+              if (/unknown action/i.test(String(msg))) {
+                toast("Apps Script를 다시 배포해 주세요");
+              } else {
+                toast(msg);
+              }
             }
           }
           return res;
@@ -1359,38 +1683,62 @@
         var remoteRev = parseInt(res.revision, 10) || 0;
         if (remoteEmpty) {
           if (hasLocalBookings() || (cfg.place && cfg.place !== PLACE_DEFAULT) || cfg.eventDate !== EVENT_DEFAULT_DATE) {
-            return pushToSheet({ quiet: opts.quiet, force: true }).then(function () {
+            return pushToSheet({ quiet: opts.quiet, force: true, showUi: opts.showUi }).then(function () {
               if (!opts.quiet) toast("이 기기 예약을 시트에 올렸습니다");
+              else if (opts.showUi) endSyncUi(true);
               return res;
             });
           }
           if (res.revision != null) saveSyncRevision(res.revision);
-          if (!opts.quiet) toast("시트에 예약이 없습니다");
+          if (!opts.quiet) {
+            endSyncUi(true);
+            toast("시트에 예약이 없습니다");
+          } else if (opts.showUi) {
+            endSyncUi(true);
+          }
           return res;
         }
-        if (opts.replace || remoteRev > syncRevision) {
+        var shouldApply =
+          opts.replace ||
+          remoteRev > syncRevision ||
+          (!hasLocalBookings() && !remoteEmpty);
+        if (shouldApply) {
           applyRemoteState(res.state || { bookings: {} }, remoteRev);
           hideSyncNotice();
-          if (!opts.quiet) toast("시트에서 불러옴");
+          if (!opts.quiet) {
+            endSyncUi(true);
+            toast("시트에서 불러옴");
+          } else if (opts.showUi) {
+            endSyncUi(true);
+          }
         } else if (res.revision != null && remoteRev === syncRevision) {
-          // 이미 최신
+          if (!opts.quiet || opts.showUi) endSyncUi(true);
         } else if (hasLocalBookings() && remoteRev < syncRevision) {
-          return pushToSheet({ quiet: true, force: true });
+          return pushToSheet({ quiet: true, force: true }).then(function (pushed) {
+            if (!opts.quiet || opts.showUi) endSyncUi(!!(pushed && pushed.ok !== false));
+            return res;
+          });
+        } else if (!opts.quiet || opts.showUi) {
+          endSyncUi(true);
         }
         return res;
       })
       .catch(function () {
         syncBusy = false;
-        if (!opts.quiet) toast("시트 불러오기 실패");
+        if (!opts.quiet || opts.showUi) {
+          endSyncUi(false);
+          if (!opts.quiet) toast("시트 불러오기 실패");
+        }
         return null;
       });
   }
 
   function manualSync() {
-    toast("시트 동기화 중…");
     hideSyncNotice();
-    return pullFromSheet({ quiet: false, replace: true }).then(function (res) {
+    beginSyncUi();
+    return pullFromSheet({ quiet: false, replace: true, forceBusy: false }).then(function (res) {
       if (res && res.ok !== false && !res.empty) return res;
+      if (syncBusy) return res;
       return pushToSheet({ quiet: false, force: true });
     });
   }
@@ -1412,6 +1760,96 @@
   function updateMeta() {
     document.getElementById("meta-date").textContent = formatMetaDate(eventDateStr());
     document.getElementById("meta-place").textContent = placeStr();
+  }
+
+  function bookedDateSet() {
+    var set = {};
+    savedDateList().forEach(function (item) {
+      if (item.count > 0) set[item.date] = item.count;
+    });
+    return set;
+  }
+
+  function toIsoDate(d) {
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  function parseIsoDate(iso) {
+    var parts = String(iso || "").split("-");
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var day = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(day)) return new Date();
+    return new Date(y, m - 1, day);
+  }
+
+  function ensureDatePickerMonth() {
+    if (datePickerMonth) return;
+    var cur = parseIsoDate(eventDateStr());
+    datePickerMonth = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  }
+
+  function renderDatePicker() {
+    ensureDatePickerMonth();
+    var y = datePickerMonth.getFullYear();
+    var m = datePickerMonth.getMonth();
+    var title = document.getElementById("dp-title");
+    if (title) title.textContent = y + "년 " + (m + 1) + "월";
+
+    var grid = document.getElementById("dp-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    var selected = eventDateStr();
+    var booked = bookedDateSet();
+    var first = new Date(y, m, 1);
+    var startPad = first.getDay();
+    var start = new Date(y, m, 1 - startPad);
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var iso = toIsoDate(d);
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = String(d.getDate());
+      btn.setAttribute("data-date", iso);
+      if (d.getMonth() !== m) btn.classList.add("muted");
+      if (d.getDay() === 0) btn.classList.add("sun");
+      if (d.getDay() === 6) btn.classList.add("sat");
+      if (iso === selected) btn.classList.add("selected");
+      if (booked[iso]) {
+        btn.classList.add("has-book");
+        btn.title = "예약 " + booked[iso] + "건";
+      }
+      btn.addEventListener("click", function (ev) {
+        pickEventDate(ev.currentTarget.getAttribute("data-date"));
+      });
+      grid.appendChild(btn);
+    }
+  }
+
+  function openDatePicker() {
+    var cur = parseIsoDate(eventDateStr());
+    datePickerMonth = new Date(cur.getFullYear(), cur.getMonth(), 1);
+    renderDatePicker();
+    document.getElementById("date-picker-bg").classList.add("on");
+    document.getElementById("date-picker").classList.add("on");
+  }
+
+  function closeDatePicker() {
+    document.getElementById("date-picker-bg").classList.remove("on");
+    document.getElementById("date-picker").classList.remove("on");
+  }
+
+  function pickEventDate(iso) {
+    if (!iso) return;
+    var changed = switchEventDate(iso);
+    closeDatePicker();
+    fillCfgForm();
+    updateMeta();
+    renderBoard();
+    renderSavedDates();
+    if (changed) toast(formatMetaDate(iso) + "로 이동");
+    else toast("같은 날짜입니다");
   }
 
   function updateSlotPreview() {
@@ -2089,13 +2527,19 @@
     document.getElementById("drawer-bg").classList.add("on");
     document.getElementById("drawer").classList.add("on");
     document.getElementById("drawer").setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
     setPanel(panel || "edit");
+    setTimeout(function () {
+      var active = document.querySelector(".drawer .panel.on");
+      if (active) active.scrollTop = 0;
+    }, 0);
   }
 
   function closeDrawer() {
     document.getElementById("drawer-bg").classList.remove("on");
     document.getElementById("drawer").classList.remove("on");
     document.getElementById("drawer").setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
     currentTime = null;
   }
 
@@ -2374,6 +2818,18 @@
   document.getElementById("drawer-bg").addEventListener("click", closeDrawer);
   document.getElementById("drawer-close").addEventListener("click", closeDrawer);
   document.getElementById("btn-settings").addEventListener("click", openSettingsOnly);
+  document.getElementById("meta-date").addEventListener("click", openDatePicker);
+  document.getElementById("date-picker-bg").addEventListener("click", closeDatePicker);
+  document.getElementById("dp-prev").addEventListener("click", function () {
+    ensureDatePickerMonth();
+    datePickerMonth = new Date(datePickerMonth.getFullYear(), datePickerMonth.getMonth() - 1, 1);
+    renderDatePicker();
+  });
+  document.getElementById("dp-next").addEventListener("click", function () {
+    ensureDatePickerMonth();
+    datePickerMonth = new Date(datePickerMonth.getFullYear(), datePickerMonth.getMonth() + 1, 1);
+    renderDatePicker();
+  });
   document.getElementById("btn-sync").addEventListener("click", function () {
     manualSync();
   });
@@ -2450,7 +2906,8 @@
   if (typeof bindPhoneAutoFocus === "function") bindPhoneAutoFocus();
   updateMeta();
   renderBoard();
-  pullFromSheet({ quiet: true, replace: false });
+  paintSyncButton();
+  pullFromSheet({ quiet: true, replace: false, showUi: true });
 
   ["pointerdown", "touchstart", "keydown", "focusin"].forEach(function (type) {
     document.addEventListener(
