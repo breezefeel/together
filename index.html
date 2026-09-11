@@ -222,7 +222,6 @@
     background: #B45309;
     color: #fff;
     box-shadow: none;
-    pointer-events: none;
   }
   #btn-sync.sync-ok {
     background: var(--ok);
@@ -630,15 +629,23 @@
     position: fixed; left: 50%;
     bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     z-index: 80;
-    transform: translateX(-50%) translateY(120%);
+    transform: translateX(-50%) translateY(12px);
     background: #111; color: #fff;
     padding: 10px 14px; border-radius: 999px;
     font-size: 12px; font-weight: 700;
-    transition: transform .2s ease;
+    transition: transform .2s ease, opacity .2s ease;
     max-width: calc(100% - 32px);
     text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
   }
-  .toast.on { transform: translateX(-50%) translateY(0); }
+  .toast.on {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
 
   .sync-notice {
     position: fixed;
@@ -1022,12 +1029,13 @@
   var ARCHIVE_KEY = "rm_event_schedule_archive_v1";
   var CFG_KEY = "rm_event_solapi_cfg_v1";
   var SYNC_REV_KEY = "rm_event_schedule_rev_v1";
-  var SYNC_AVG_KEY = "rm_event_schedule_sync_avg_ms_v1";
+  var SYNC_AVG_KEY = "rm_event_schedule_sync_avg_ms_v2";
   var GAS_URL = "https://script.google.com/macros/s/AKfycbwVJSc6rY5tcBSB1VaRi4DBEXGyUBr1ADFfs6QEA9Z9bu0G-0mdMAv374-MdPVYMnSaeQ/exec";
   var EVENT_DEFAULT_DATE = "2026-09-12";
   var PLACE_DEFAULT = "작전이음길 · 가현근린공원 안전 ZONE";
   var PROGRAM = "패시브 스트레칭";
-  var SYNC_ETA_DEFAULT_MS = 9000;
+  var SYNC_ETA_DEFAULT_MS = 5000;
+  var SYNC_REQUEST_TIMEOUT_MS = 22000;
 
   var state = loadState();
   var cfg = loadCfg();
@@ -1041,16 +1049,23 @@
   var syncUi = {
     status: "idle",
     etaSec: 0,
+    etaTotalMs: 0,
     timer: null,
     startedAt: 0,
-    holdTimer: null
+    holdTimer: null,
+    watchTimer: null,
+    gen: 0
   };
+  var syncPushQueued = false;
   var lastActiveAt = Date.now();
   var resumeCheckCooldownUntil = 0;
   var IDLE_MS = 60 * 1000;
   var currentTime = null;
   var filter = "all";
   var toastTimer = null;
+  var toastSafetyTimer = null;
+  var toastGen = 0;
+  var toastShownAt = 0;
   var draftBreaks = [];
   var datePickerMonth = null; // Date at 1st of visible month
   var drag = {
@@ -1325,20 +1340,43 @@
     } catch (e) {}
   }
 
-  function loadSyncAvgMs() {
+  function loadSyncSamples() {
     try {
-      var n = parseInt(localStorage.getItem(SYNC_AVG_KEY) || "", 10);
-      if (!isNaN(n) && n >= 2500 && n <= 45000) return n;
+      var raw = localStorage.getItem(SYNC_AVG_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(function (n) { return parseInt(n, 10); })
+          .filter(function (n) { return !isNaN(n) && n >= 1200 && n <= 45000; })
+          .slice(-8);
+      }
     } catch (e) {}
-    return SYNC_ETA_DEFAULT_MS;
+    return [];
+  }
+
+  function loadSyncAvgMs() {
+    var samples = loadSyncSamples();
+    if (!samples.length) return SYNC_ETA_DEFAULT_MS;
+    var sum = 0;
+    for (var i = 0; i < samples.length; i++) sum += samples[i];
+    return Math.round(sum / samples.length);
+  }
+
+  function estimateSyncMs(kind) {
+    var base = loadSyncAvgMs();
+    // 실측보다 약간 여유를 둬서 카운트가 너무 일찍 끝나지 않게
+    var ms = kind === "roundtrip" ? Math.round(base * 1.75) : Math.round(base * 1.08);
+    return Math.max(2500, Math.min(18000, ms));
   }
 
   function rememberSyncDuration(ms) {
-    if (!ms || ms < 800 || ms > 60000) return;
-    var prev = loadSyncAvgMs();
-    var next = Math.round(prev * 0.65 + ms * 0.35);
+    if (!ms || ms < 1000 || ms > 45000) return;
+    var samples = loadSyncSamples();
+    samples.push(Math.round(ms));
+    if (samples.length > 8) samples = samples.slice(-8);
     try {
-      localStorage.setItem(SYNC_AVG_KEY, String(next));
+      localStorage.setItem(SYNC_AVG_KEY, JSON.stringify(samples));
     } catch (e) {}
   }
 
@@ -1356,13 +1394,20 @@
     }
   }
 
+  function clearSyncWatch() {
+    if (syncUi.watchTimer) {
+      clearTimeout(syncUi.watchTimer);
+      syncUi.watchTimer = null;
+    }
+  }
+
   function paintSyncButton() {
     var btn = document.getElementById("btn-sync");
     if (!btn) return;
     btn.classList.remove("sync-idle", "sync-busy", "sync-ok", "sync-err", "ghost");
     if (syncUi.status === "busy") {
       btn.classList.add("sync-busy");
-      btn.textContent = "동기화 " + Math.max(1, syncUi.etaSec) + "초";
+      btn.textContent = syncUi.etaSec >= 1 ? ("동기화 " + syncUi.etaSec + "초") : "동기화 중";
       btn.title = "시트와 맞추는 중";
     } else if (syncUi.status === "ok") {
       btn.classList.add("sync-ok");
@@ -1372,6 +1417,10 @@
       btn.classList.add("sync-err");
       btn.textContent = "동기화 실패";
       btn.title = "다시 눌러 재시도";
+    } else if (syncUi.status === "dirty") {
+      btn.classList.add("sync-busy");
+      btn.textContent = "동기화 대기";
+      btn.title = "저장 후 시트에 올리는 중";
     } else {
       btn.classList.add("ghost", "sync-idle");
       btn.textContent = "동기화";
@@ -1379,19 +1428,37 @@
     }
   }
 
+  function refreshBusyEta() {
+    if (syncUi.status !== "busy" || !syncUi.startedAt) return;
+    var remainMs = syncUi.etaTotalMs - (Date.now() - syncUi.startedAt);
+    syncUi.etaSec = Math.max(0, Math.ceil(remainMs / 1000));
+  }
+
   function setSyncUi(status, opts) {
     opts = opts || {};
     clearSyncHold();
+    clearSyncWatch();
     if (status !== "busy") clearSyncCountdown();
     syncUi.status = status || "idle";
     if (status === "busy") {
+      syncUi.gen += 1;
+      var gen = syncUi.gen;
       syncUi.startedAt = Date.now();
-      syncUi.etaSec = Math.max(3, Math.ceil((opts.etaMs || loadSyncAvgMs()) / 1000));
+      syncUi.etaTotalMs = opts.etaMs || estimateSyncMs(opts.kind || "single");
+      refreshBusyEta();
       clearSyncCountdown();
       syncUi.timer = setInterval(function () {
-        if (syncUi.etaSec > 1) syncUi.etaSec -= 1;
+        if (syncUi.gen !== gen || syncUi.status !== "busy") return;
+        refreshBusyEta();
         paintSyncButton();
-      }, 1000);
+      }, 250);
+      syncUi.watchTimer = setTimeout(function () {
+        if (syncUi.gen !== gen || syncUi.status !== "busy") return;
+        syncBusy = false;
+        endSyncUi(false);
+        toast("동기화 시간 초과 · 다시 눌러 주세요");
+        if (syncPushQueued) flushSheetPush();
+      }, SYNC_REQUEST_TIMEOUT_MS + 2000);
     } else if (status === "ok" || status === "err") {
       if (status === "ok" && syncUi.startedAt) {
         rememberSyncDuration(Date.now() - syncUi.startedAt);
@@ -1402,19 +1469,31 @@
           syncUi.status = "idle";
           paintSyncButton();
         }
-      }, opts.holdMs || 2200);
+      }, opts.holdMs || 1800);
     }
     paintSyncButton();
   }
 
-  function beginSyncUi() {
-    if (syncUi.status !== "busy") setSyncUi("busy");
+  function beginSyncUi(opts) {
+    // 이미 진행 중이면 ETA를 리셋하지 않음 (수동 동기화 → pull/push 연속)
+    if (syncUi.status === "busy") return;
+    setSyncUi("busy", opts || {});
+  }
+
+  function markSyncDirty() {
+    if (syncUi.status === "busy" || syncUi.status === "dirty") {
+      paintSyncButton();
+      return;
+    }
+    syncUi.status = "dirty";
+    paintSyncButton();
   }
 
   function endSyncUi(ok, opts) {
     opts = opts || {};
     if (opts.keepBusy) return;
-    setSyncUi(ok ? "ok" : "err");
+    clearSyncWatch();
+    setSyncUi(ok ? "ok" : "err", opts);
   }
 
   function loadCfg() {
@@ -1478,13 +1557,21 @@
   function gasRequest(payload) {
     // Apps Script는 모바일 Safari에서 GET+리다이렉트가 자주 깨지므로 항상 POST
     var body = JSON.stringify(payload || {});
-    return fetch(GAS_URL, {
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timedOut = false;
+    var timer = setTimeout(function () {
+      timedOut = true;
+      if (ctrl) ctrl.abort();
+    }, SYNC_REQUEST_TIMEOUT_MS);
+    var reqOpts = {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: body,
       redirect: "follow",
       credentials: "omit"
-    })
+    };
+    if (ctrl) reqOpts.signal = ctrl.signal;
+    return fetch(GAS_URL, reqOpts)
       .then(function (res) {
         return res.text();
       })
@@ -1500,8 +1587,15 @@
           return { ok: false, message: "시트 응답 오류" };
         }
       })
-      .catch(function () {
+      .catch(function (err) {
+        if (timedOut || (err && err.name === "AbortError")) {
+          return { ok: false, message: "동기화 시간 초과" };
+        }
         return { ok: false, message: "시트에 연결하지 못했습니다" };
+      })
+      .then(function (result) {
+        clearTimeout(timer);
+        return result;
       });
   }
 
@@ -1534,11 +1628,27 @@
   }
 
   function queueSheetPush() {
+    syncPushQueued = true;
+    markSyncDirty();
     if (syncPushTimer) clearTimeout(syncPushTimer);
     syncPushTimer = setTimeout(function () {
       syncPushTimer = null;
-      pushToSheet({ quiet: true });
-    }, 400);
+      flushSheetPush();
+    }, 450);
+  }
+
+  function flushSheetPush() {
+    if (!syncPushQueued) return;
+    if (syncBusy) {
+      if (syncPushTimer) clearTimeout(syncPushTimer);
+      syncPushTimer = setTimeout(function () {
+        syncPushTimer = null;
+        flushSheetPush();
+      }, 350);
+      return;
+    }
+    syncPushQueued = false;
+    pushToSheet({ quiet: true, showUi: true });
   }
 
   function hideSyncNotice() {
@@ -1573,6 +1683,7 @@
     var now = Date.now();
     var wasIdle = now - lastActiveAt >= IDLE_MS;
     lastActiveAt = now;
+    dismissStaleToast();
     if (wasIdle) maybeCheckRemoteAfterIdle();
   }
 
@@ -1606,12 +1717,13 @@
   function pushToSheet(opts) {
     opts = opts || {};
     if (syncBusy) {
-      queueSheetPush();
+      syncPushQueued = true;
+      markSyncDirty();
       return Promise.resolve(null);
     }
     syncBusy = true;
     var showUi = !opts.quiet || !!opts.showUi;
-    if (showUi) beginSyncUi();
+    if (showUi) beginSyncUi({ kind: "single" });
     var payload = {
       action: "eventSchedulePush",
       revision: syncRevision,
@@ -1629,6 +1741,7 @@
             showSyncNotice(res);
             if (showUi) endSyncUi(false);
             if (!opts.quiet) toast("다른 기기 내용이 더 최신입니다");
+            if (syncPushQueued) flushSheetPush();
             return res;
           }
           if (showUi) endSyncUi(false);
@@ -1640,18 +1753,21 @@
               toast(msg);
             }
           }
+          if (syncPushQueued) flushSheetPush();
           return res;
         }
         if (res.revision != null) saveSyncRevision(res.revision);
         hideSyncNotice();
         if (showUi) endSyncUi(true);
         if (!opts.quiet) toast("시트 동기화 완료");
+        if (syncPushQueued) flushSheetPush();
         return res;
       })
       .catch(function () {
         syncBusy = false;
         if (showUi) endSyncUi(false);
         if (!opts.quiet) toast("시트 저장 실패");
+        if (syncPushQueued) flushSheetPush();
         return null;
       });
   }
@@ -1660,8 +1776,8 @@
     opts = opts || {};
     if (syncBusy && !opts.forceBusy) return Promise.resolve(null);
     syncBusy = true;
-    if (!opts.quiet) beginSyncUi();
-    else if (opts.showUi) beginSyncUi();
+    if (!opts.quiet) beginSyncUi({ kind: "single" });
+    else if (opts.showUi) beginSyncUi({ kind: "single" });
     return gasRequest({ action: "eventSchedulePull" })
       .then(function (res) {
         syncBusy = false;
@@ -1683,9 +1799,10 @@
         var remoteRev = parseInt(res.revision, 10) || 0;
         if (remoteEmpty) {
           if (hasLocalBookings() || (cfg.place && cfg.place !== PLACE_DEFAULT) || cfg.eventDate !== EVENT_DEFAULT_DATE) {
-            return pushToSheet({ quiet: opts.quiet, force: true, showUi: opts.showUi }).then(function () {
-              if (!opts.quiet) toast("이 기기 예약을 시트에 올렸습니다");
-              else if (opts.showUi) endSyncUi(true);
+            return pushToSheet({ quiet: opts.quiet, force: true, showUi: opts.showUi }).then(function (pushed) {
+              if (!opts.quiet) {
+                if (pushed && pushed.ok !== false) toast("이 기기 예약을 시트에 올렸습니다");
+              }
               return res;
             });
           }
@@ -1714,8 +1831,11 @@
         } else if (res.revision != null && remoteRev === syncRevision) {
           if (!opts.quiet || opts.showUi) endSyncUi(true);
         } else if (hasLocalBookings() && remoteRev < syncRevision) {
-          return pushToSheet({ quiet: true, force: true }).then(function (pushed) {
-            if (!opts.quiet || opts.showUi) endSyncUi(!!(pushed && pushed.ok !== false));
+          return pushToSheet({
+            quiet: true,
+            force: true,
+            showUi: !opts.quiet || !!opts.showUi
+          }).then(function () {
             return res;
           });
         } else if (!opts.quiet || opts.showUi) {
@@ -1735,7 +1855,7 @@
 
   function manualSync() {
     hideSyncNotice();
-    beginSyncUi();
+    beginSyncUi({ kind: "roundtrip" });
     return pullFromSheet({ quiet: false, replace: true, forceBusy: false }).then(function (res) {
       if (res && res.ok !== false && !res.empty) return res;
       if (syncBusy) return res;
@@ -1849,7 +1969,6 @@
     renderBoard();
     renderSavedDates();
     if (changed) toast(formatMetaDate(iso) + "로 이동");
-    else toast("같은 날짜입니다");
   }
 
   function updateSlotPreview() {
@@ -1985,12 +2104,49 @@
     });
   }
 
+  function hideToast() {
+    var el = document.getElementById("toast");
+    if (el) {
+      el.classList.remove("on");
+      el.setAttribute("aria-hidden", "true");
+    }
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+    if (toastSafetyTimer) {
+      clearTimeout(toastSafetyTimer);
+      toastSafetyTimer = null;
+    }
+    toastShownAt = 0;
+  }
+
+  function dismissStaleToast() {
+    if (!toastShownAt) return;
+    if (Date.now() - toastShownAt < 2800) return;
+    hideToast();
+  }
+
   function toast(msg) {
     var el = document.getElementById("toast");
-    el.textContent = msg;
+    if (!el || msg == null || msg === "") return;
+    toastGen += 1;
+    var gen = toastGen;
+    toastShownAt = Date.now();
+    el.textContent = String(msg);
+    el.setAttribute("aria-hidden", "false");
     el.classList.add("on");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.remove("on"); }, 2600);
+    if (toastTimer) clearTimeout(toastTimer);
+    if (toastSafetyTimer) clearTimeout(toastSafetyTimer);
+    toastTimer = setTimeout(function () {
+      if (gen !== toastGen) return;
+      hideToast();
+    }, 2500);
+    // 모바일에서 타이머가 밀려도 최대 5초면 강제 숨김
+    toastSafetyTimer = setTimeout(function () {
+      if (gen !== toastGen) return;
+      hideToast();
+    }, 5000);
   }
 
   function booking(time) {
@@ -2045,7 +2201,6 @@
       return;
     }
     if (!confirm(time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)")) return;
-    toast(time + " 알림톡 발송 중…");
     scheduleAlimtalk(time, { immediate: true }).catch(function () {});
   }
 
@@ -2738,7 +2893,7 @@
         "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
         "#{시간}":
           time +
-          "\n· 패시브 스트레칭 체험 준비!\n· 5분 전입니다. 안전 ZONE 에서 만나요.\n활기찬 오후, 그리고"
+          "\n· 패시브 스트레칭 체험 준비!\n· 5분 전입니다. 안전 ZONE 에서 만나요.\n\n활기찬 오후, 그리고"
       }
     };
 
@@ -2818,6 +2973,10 @@
   document.getElementById("drawer-bg").addEventListener("click", closeDrawer);
   document.getElementById("drawer-close").addEventListener("click", closeDrawer);
   document.getElementById("btn-settings").addEventListener("click", openSettingsOnly);
+  document.getElementById("toast").addEventListener("click", hideToast);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) dismissStaleToast();
+  });
   document.getElementById("meta-date").addEventListener("click", openDatePicker);
   document.getElementById("date-picker-bg").addEventListener("click", closeDatePicker);
   document.getElementById("dp-prev").addEventListener("click", function () {
