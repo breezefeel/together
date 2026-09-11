@@ -576,6 +576,62 @@
     background: #FEE2E2; color: var(--danger);
     font-size: 16px; font-weight: 900;
   }
+  .saved-dates {
+    display: grid;
+    gap: 6px;
+  }
+  .saved-date-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+  .saved-date-row.current {
+    border-color: var(--gold);
+    background: #FFF8E8;
+  }
+  .saved-date-meta {
+    min-width: 0;
+    flex: 1;
+  }
+  .saved-date-meta b {
+    display: block;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: -.02em;
+  }
+  .saved-date-meta span {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--mute);
+    font-weight: 700;
+  }
+  .saved-date-row button {
+    border: 0;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: inherit;
+    background: #111;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .saved-date-row.current button {
+    background: var(--gold);
+    color: #000;
+  }
+  .saved-dates-empty {
+    font-size: 12px;
+    color: var(--mute);
+    font-weight: 700;
+    line-height: 1.45;
+  }
   .slot-preview {
     margin-top: 8px;
     font-size: 11px; font-weight: 700; color: var(--mute); line-height: 1.45;
@@ -685,11 +741,16 @@
         <div class="field">
           <label for="c-eventdate">행사 날짜</label>
           <input id="c-eventdate" type="date" value="2026-09-12">
+          <p class="hint">날짜를 바꿔 저장하면 그날 예약 목록으로 전환됩니다. 이전 날짜 목록은 자동 보관됩니다.</p>
+        </div>
+        <div class="field">
+          <label>저장된 날짜</label>
+          <div class="saved-dates" id="saved-dates"></div>
         </div>
         <div class="field">
           <label for="c-place" class="label-row">
             <span>장소</span>
-            <span class="label-hint">아래 장소가 알림톡으로 안내됩니다</span>
+            <span class="label-hint">알림톡에는 「5분 전에 안전 ZONE 에서 만나요」로 안내됩니다</span>
           </label>
           <input id="c-place" type="text" value="작전이음길 · 가현근린공원 안전 ZONE" placeholder="행사 장소">
         </div>
@@ -742,6 +803,7 @@
 <script>
 (function () {
   var STORAGE_KEY = "rm_event_schedule_v1";
+  var ARCHIVE_KEY = "rm_event_schedule_archive_v1";
   var CFG_KEY = "rm_event_solapi_cfg_v1";
   var SYNC_REV_KEY = "rm_event_schedule_rev_v1";
   var GAS_URL = "https://script.google.com/macros/s/AKfycbwVJSc6rY5tcBSB1VaRi4DBEXGyUBr1ADFfs6QEA9Z9bu0G-0mdMAv374-MdPVYMnSaeQ/exec";
@@ -751,6 +813,7 @@
 
   var state = loadState();
   var cfg = loadCfg();
+  ensureArchiveMigrated();
   var syncRevision = loadSyncRevision();
   var syncPushTimer = null;
   var syncBusy = false;
@@ -851,9 +914,173 @@
     }
   }
 
+  function cloneBookings(bookings) {
+    try {
+      return JSON.parse(JSON.stringify(bookings || {}));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function bookingCount(bookings) {
+    var n = 0;
+    var map = bookings || {};
+    Object.keys(map).forEach(function (t) {
+      if (map[t] && map[t].name) n++;
+    });
+    return n;
+  }
+
+  function loadArchive() {
+    try {
+      var raw = localStorage.getItem(ARCHIVE_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveArchive(arch) {
+    try {
+      localStorage.setItem(ARCHIVE_KEY, JSON.stringify(arch || {}));
+    } catch (e) {}
+  }
+
+  function daySnapshot() {
+    return {
+      bookings: cloneBookings(state.bookings),
+      place: cfg.place || PLACE_DEFAULT,
+      startTime: cfg.startTime || "10:00",
+      endTime: cfg.endTime || "16:45",
+      intervalMin: parseInt(cfg.intervalMin, 10) || 15,
+      breaks: normalizeBreaks(cfg.breaks),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  function persistCurrentDay(date) {
+    date = date || eventDateStr();
+    if (!date) return;
+    var arch = loadArchive();
+    var count = bookingCount(state.bookings);
+    if (count === 0) {
+      if (arch[date]) delete arch[date];
+    } else {
+      arch[date] = daySnapshot();
+    }
+    saveArchive(arch);
+  }
+
+  function applyDaySnapshot(day) {
+    if (!day || typeof day !== "object") {
+      state = { bookings: {} };
+      return;
+    }
+    state = { bookings: cloneBookings(day.bookings) };
+    if (day.place) cfg.place = day.place;
+    if (day.startTime) cfg.startTime = day.startTime;
+    if (day.endTime) cfg.endTime = day.endTime;
+    if (day.intervalMin) cfg.intervalMin = parseInt(day.intervalMin, 10) || cfg.intervalMin;
+    if (day.breaks) cfg.breaks = normalizeBreaks(day.breaks);
+  }
+
+  function switchEventDate(newDate, opts) {
+    opts = opts || {};
+    newDate = newDate || EVENT_DEFAULT_DATE;
+    var oldDate = eventDateStr();
+    if (newDate === oldDate && !opts.forceReload) {
+      persistCurrentDay(oldDate);
+      return false;
+    }
+    persistCurrentDay(oldDate);
+    cfg.eventDate = newDate;
+    var day = loadArchive()[newDate];
+    applyDaySnapshot(day || null);
+    saveCfg({ skipSync: !!opts.skipSync });
+    saveState({ skipSync: !!opts.skipSync });
+    return true;
+  }
+
+  function ensureArchiveMigrated() {
+    var arch = loadArchive();
+    var date = cfg.eventDate || EVENT_DEFAULT_DATE;
+    if (!arch[date] && bookingCount(state.bookings) > 0) {
+      arch[date] = daySnapshot();
+      saveArchive(arch);
+    } else {
+      persistCurrentDay(date);
+    }
+  }
+
+  function savedDateList() {
+    var arch = loadArchive();
+    var current = eventDateStr();
+    var dates = Object.keys(arch).filter(function (d) {
+      return bookingCount((arch[d] && arch[d].bookings) || {}) > 0;
+    });
+    if (bookingCount(state.bookings) > 0 && dates.indexOf(current) < 0) {
+      dates.push(current);
+    }
+    dates.sort();
+    dates.reverse();
+    return dates.map(function (d) {
+      var day = arch[d];
+      var bookings = d === current ? state.bookings : ((day && day.bookings) || {});
+      return {
+        date: d,
+        count: bookingCount(bookings),
+        current: d === current
+      };
+    });
+  }
+
+  function renderSavedDates() {
+    var box = document.getElementById("saved-dates");
+    if (!box) return;
+    var list = savedDateList();
+    if (!list.length) {
+      box.innerHTML = '<p class="saved-dates-empty">아직 저장된 날짜가 없습니다. 예약을 넣으면 자동으로 날짜별 보관됩니다.</p>';
+      return;
+    }
+    box.innerHTML = "";
+    list.forEach(function (item) {
+      var row = document.createElement("div");
+      row.className = "saved-date-row" + (item.current ? " current" : "");
+      var meta = document.createElement("div");
+      meta.className = "saved-date-meta";
+      meta.innerHTML =
+        "<b>" + escapeHtml(formatMetaDate(item.date)) + "</b>" +
+        "<span>" + item.date + " · 예약 " + item.count + "건" + (item.current ? " · 보는 중" : "") + "</span>";
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = item.current ? "새로고침" : "불러오기";
+      btn.addEventListener("click", function () {
+        if (item.current) {
+          persistCurrentDay(item.date);
+          renderSavedDates();
+          toast("현재 날짜 목록을 저장했습니다");
+          return;
+        }
+        if (!confirm(formatMetaDate(item.date) + " 예약을 불러올까요?\n지금 보던 날짜는 자동 저장됩니다.")) return;
+        switchEventDate(item.date);
+        fillCfgForm();
+        updateMeta();
+        renderBoard();
+        renderSavedDates();
+        toast(formatMetaDate(item.date) + " 불러옴");
+      });
+      row.appendChild(meta);
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  }
+
   function saveState(opts) {
     opts = opts || {};
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    persistCurrentDay(eventDateStr());
     if (!opts.skipSync && !syncSkipPush) queueSheetPush();
   }
 
@@ -880,7 +1107,7 @@
       var merged = Object.assign(defaultCfg(), parsed);
       merged.breaks = normalizeBreaks(merged.breaks);
       merged.intervalMin = parseInt(merged.intervalMin, 10) || 15;
-      if (!merged.templateId) merged.templateId = defaultCfg().templateId;
+      merged.templateId = defaultCfg().templateId;
       if (!merged.pfId) merged.pfId = defaultCfg().pfId;
       return merged;
     } catch (e) {
@@ -893,7 +1120,7 @@
       apiKey: "",
       apiSecret: "",
       pfId: "KA01PF260910081826080Z1ZyS9A6vRW",
-      templateId: "KA01TP260910094739181hTiS2bqcvnb",
+      templateId: "KA01TP26091010520398292gKoFYOOSY",
       from: "",
       eventDate: EVENT_DEFAULT_DATE,
       place: PLACE_DEFAULT,
@@ -961,9 +1188,9 @@
   function applyRemoteState(remoteState, revision) {
     syncSkipPush = true;
     try {
+      persistCurrentDay(eventDateStr());
       if (remoteState && remoteState.bookings && typeof remoteState.bookings === "object") {
         state = { bookings: remoteState.bookings };
-        saveState({ skipSync: true });
       }
       if (remoteState && remoteState.cfg && typeof remoteState.cfg === "object") {
         cfg = Object.assign(defaultCfg(), cfg, {
@@ -976,9 +1203,11 @@
         });
         saveCfg({ skipSync: true });
       }
+      saveState({ skipSync: true });
       if (revision != null) saveSyncRevision(revision);
       updateMeta();
       renderBoard();
+      renderSavedDates();
     } finally {
       syncSkipPush = false;
     }
@@ -1006,7 +1235,6 @@
       text.innerHTML = "다른 기기에 <b>최신 예약</b>이 있습니다. 불러올까요?";
     }
     if (el) el.classList.add("on");
-    toast("최신 데이터 있음 · 동기화 알림을 확인하세요");
   }
 
   function applySyncNotice() {
@@ -1345,7 +1573,37 @@
     state.bookings[time] = b;
     saveState();
     renderBoard();
-    toast(time + " · " + statusLabel(b).text);
+  }
+
+  function statusOptionsHtml() {
+    return (
+      '<option value="booked">예약</option>' +
+      '<option value="done">완료</option>' +
+      '<option value="cancel">취소</option>' +
+      '<option value="noshow">노쇼</option>' +
+      '<option value="alimtalk">알림톡</option>'
+    );
+  }
+
+  function sendAlimtalkNow(time) {
+    var b = booking(time);
+    if (!b || !b.name) {
+      toast("예약 정보가 없습니다.");
+      return;
+    }
+    if (!confirm(time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?")) return;
+    scheduleAlimtalk(time, { immediate: true }).catch(function () {});
+  }
+
+  function bindStatusSelect(selectEl, time) {
+    selectEl.addEventListener("change", function () {
+      if (selectEl.value === "alimtalk") {
+        selectEl.value = normalizeStatus((booking(time) || {}).status);
+        sendAlimtalkNow(time);
+        return;
+      }
+      setBookingStatus(time, selectEl.value);
+    });
   }
 
   function cloneBooking(b) {
@@ -1407,7 +1665,6 @@
     }
     saveState();
     renderBoard();
-    toast(fromTime + " ↔ " + toTime + " 변경됨");
     return true;
   }
 
@@ -1552,15 +1809,9 @@
       var next = document.createElement("select");
       next.className = "badge-select " + st.key;
       next.setAttribute("aria-label", time + " 상태");
-      next.innerHTML =
-        '<option value="booked">예약</option>' +
-        '<option value="done">완료</option>' +
-        '<option value="cancel">취소</option>' +
-        '<option value="noshow">노쇼</option>';
+      next.innerHTML = statusOptionsHtml();
       next.value = normalizeStatus(b.status);
-      next.addEventListener("change", function () {
-        setBookingStatus(time, next.value);
-      });
+      bindStatusSelect(next, time);
       if (oldStatus) side.replaceChild(next, oldStatus);
       else side.insertBefore(next, side.firstChild);
     } else if (oldStatus) {
@@ -1651,7 +1902,7 @@
     name.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
         e.preventDefault();
-        saveInlineRow(row, { toast: true, warn: true });
+        saveInlineRow(row, { toast: false, warn: true });
         name.blur();
       }
       if (e.key === "Backspace" && !name.value) p3.focus();
@@ -1781,15 +2032,9 @@
         var statusEl = document.createElement("select");
         statusEl.className = "badge-select " + st.key;
         statusEl.setAttribute("aria-label", t + " 상태");
-        statusEl.innerHTML =
-          '<option value="booked">예약</option>' +
-          '<option value="done">완료</option>' +
-          '<option value="cancel">취소</option>' +
-          '<option value="noshow">노쇼</option>';
+        statusEl.innerHTML = statusOptionsHtml();
         statusEl.value = normalizeStatus(b.status);
-        statusEl.addEventListener("change", function () {
-          setBookingStatus(t, statusEl.value);
-        });
+        bindStatusSelect(statusEl, t);
         side.appendChild(statusEl);
       }
       side.appendChild(memoInput);
@@ -1878,6 +2123,8 @@
 
   function openSettingsOnly() {
     document.getElementById("drawer-title").textContent = "스케줄 설정";
+    fillCfgForm();
+    renderSavedDates();
     openDrawer("cfg");
   }
 
@@ -1891,6 +2138,7 @@
       return { start: b.start, end: b.end };
     });
     renderBreakList();
+    renderSavedDates();
   }
 
   function readCfgForm() {
@@ -1910,12 +2158,21 @@
       toast("장소를 입력해 주세요.");
       return false;
     }
-    cfg.eventDate = document.getElementById("c-eventdate").value || EVENT_DEFAULT_DATE;
+    var newDate = document.getElementById("c-eventdate").value || EVENT_DEFAULT_DATE;
+    var oldDate = eventDateStr();
+    var breaks = normalizeBreaks(draftBreaks);
+
+    if (newDate !== oldDate) {
+      persistCurrentDay(oldDate);
+      cfg.eventDate = newDate;
+      applyDaySnapshot(loadArchive()[newDate] || null);
+    }
+
     cfg.place = place;
     cfg.startTime = start;
     cfg.endTime = end;
     cfg.intervalMin = interval;
-    cfg.breaks = normalizeBreaks(draftBreaks);
+    cfg.breaks = breaks;
     return true;
   }
 
@@ -1959,7 +2216,6 @@
         return state.bookings[time];
       });
     }
-    toast(time + " 저장됨");
     openEdit(time);
     return Promise.resolve(state.bookings[time]);
   }
@@ -1970,7 +2226,6 @@
     delete state.bookings[currentTime];
     saveState();
     renderBoard();
-    toast(currentTime + " 비움");
     closeDrawer();
   }
 
@@ -2041,9 +2296,8 @@
           pfId: cfg.pfId,
           templateId: cfg.templateId,
           variables: {
-            "#{이름}": b.name,
-            "#{시간}": time,
-            "#{장소}": placeStr()
+            "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
+            "#{시간}": time + " · 5분 전에 안전 ZONE 에서 만나요."
           }
         }
       },
@@ -2157,10 +2411,17 @@
     saveBooking({ schedule: true, immediate: true });
   });
   document.getElementById("btn-cfg-save").addEventListener("click", function () {
+    var prevDate = eventDateStr();
     if (!readCfgForm()) return;
     saveCfg();
+    saveState();
+    fillCfgForm();
+    updateMeta();
     renderBoard();
-    toast("설정 저장 · " + slots().length + "칸");
+    renderSavedDates();
+    var msg = "설정 저장 · " + slots().length + "칸";
+    if (eventDateStr() !== prevDate) msg = formatMetaDate(eventDateStr()) + "로 전환 · " + slots().length + "칸";
+    toast(msg);
     closeDrawer();
   });
   document.getElementById("btn-cfg-reset").addEventListener("click", function () {
