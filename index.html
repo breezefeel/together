@@ -783,22 +783,10 @@
       </div>
 
       <div class="cfg-section">
-        <h3>알림톡 (솔라피)</h3>
-        <p class="hint" style="margin-bottom:8px">API 키·시크릿이 있어야 알림톡이 발송됩니다. 브라우저에만 저장됩니다.</p>
-        <div class="field">
-          <label for="c-apikey">API Key</label>
-          <input id="c-apikey" type="password" autocomplete="off" placeholder="솔라피 API Key">
-        </div>
-        <div class="field">
-          <label for="c-apisecret">API Secret</label>
-          <input id="c-apisecret" type="password" autocomplete="off" placeholder="솔라피 API Secret">
-        </div>
-        <div class="field">
-          <label for="c-from">발신번호 (선택)</label>
-          <input id="c-from" type="tel" inputmode="numeric" placeholder="01012345678">
-          <p class="hint">알림톡만 쓰면 비워도 됩니다.</p>
-        </div>
-        <p class="hint" id="solapi-ready-hint"></p>
+        <h3>알림톡</h3>
+        <p class="hint" id="solapi-ready-hint" style="margin-bottom:0">
+          code.gs 스크립트 속성(SOLAPI_API_KEY 등) + 리얼무브먼트 인천점 채널로 발송됩니다. 브라우저에 키를 넣을 필요 없습니다.
+        </p>
       </div>
 
       <div class="row-btns">
@@ -1127,7 +1115,7 @@
       merged.breaks = normalizeBreaks(merged.breaks);
       merged.intervalMin = parseInt(merged.intervalMin, 10) || 15;
       merged.templateId = defaultCfg().templateId;
-      if (!merged.pfId) merged.pfId = defaultCfg().pfId;
+      merged.pfId = defaultCfg().pfId;
       return merged;
     } catch (e) {
       return defaultCfg();
@@ -1615,14 +1603,10 @@
       return;
     }
     if (!cfgReady()) {
-      toast("솔라피 API 키·시크릿을 설정에서 먼저 저장해 주세요.");
+      toast("알림톡 템플릿/채널 설정이 없습니다.");
       return;
     }
-    if (!window.isSecureContext || !(window.crypto && crypto.subtle)) {
-      toast("알림톡은 https 또는 localhost에서만 발송됩니다. 파일로 열면 안 됩니다.");
-      return;
-    }
-    if (!confirm(time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?")) return;
+    if (!confirm(time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)")) return;
     toast(time + " 알림톡 발송 중…");
     scheduleAlimtalk(time, { immediate: true }).catch(function () {});
   }
@@ -2145,8 +2129,8 @@
     } else {
       line.className = "status-line warn";
       line.textContent = cfgReady()
-        ? "알림톡 미예약 · 저장 시 시작 5분 전으로 예약됩니다."
-        : "알림톡 불가 · 설정에 솔라피 API Key·Secret을 저장해 주세요.";
+        ? "알림톡 미예약 · 저장 시 시작 5분 전으로 예약됩니다. (인천점 채널 · code.gs)"
+        : "알림톡 설정 없음 · 템플릿/채널 ID를 확인해 주세요.";
     }
     openDrawer("edit");
     setTimeout(function () {
@@ -2169,14 +2153,11 @@
     document.getElementById("c-start").value = cfg.startTime || "10:00";
     document.getElementById("c-end").value = cfg.endTime || "16:45";
     document.getElementById("c-interval").value = String(cfg.intervalMin || 15);
-    document.getElementById("c-apikey").value = cfg.apiKey || "";
-    document.getElementById("c-apisecret").value = cfg.apiSecret || "";
-    document.getElementById("c-from").value = cfg.from || "";
     var readyHint = document.getElementById("solapi-ready-hint");
     if (readyHint) {
       readyHint.textContent = cfgReady()
-        ? "알림톡 발송 준비됨 · 템플릿 " + (cfg.templateId || "")
-        : "API Key·Secret을 넣어야 알림톡 버튼이 동작합니다.";
+        ? "code.gs 스크립트 속성 키로 발송 · 채널 리얼무브먼트 인천점 · 템플릿 " + (cfg.templateId || "")
+        : "템플릿/채널 ID가 없습니다. 페이지를 새로고침하거나 code.gs EVENT_SCHEDULE 설정을 확인하세요.";
     }
     draftBreaks = normalizeBreaks(cfg.breaks).map(function (b) {
       return { start: b.start, end: b.end };
@@ -2217,9 +2198,6 @@
     cfg.endTime = end;
     cfg.intervalMin = interval;
     cfg.breaks = breaks;
-    cfg.apiKey = document.getElementById("c-apikey").value.trim();
-    cfg.apiSecret = document.getElementById("c-apisecret").value.trim();
-    cfg.from = document.getElementById("c-from").value.replace(/\D/g, "");
     return true;
   }
 
@@ -2277,7 +2255,7 @@
   }
 
   function cfgReady() {
-    return !!(cfg.apiKey && cfg.apiSecret && cfg.pfId && cfg.templateId);
+    return !!(GAS_URL && cfg.pfId && cfg.templateId);
   }
 
   function toIsoKst(date) {
@@ -2290,43 +2268,13 @@
     return y + "-" + m + "-" + d + "T" + hh + ":" + mm + ":" + ss + "+09:00";
   }
 
-  function randomSalt() {
-    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return String(Date.now()) + Math.random().toString(16).slice(2);
-  }
-
-  function hmacSha256Hex(secret, message) {
-    var enc = new TextEncoder();
-    return crypto.subtle.importKey(
-      "raw",
-      enc.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    ).then(function (key) {
-      return crypto.subtle.sign("HMAC", key, enc.encode(message));
-    }).then(function (buf) {
-      return Array.from(new Uint8Array(buf)).map(function (b) {
-        return b.toString(16).padStart(2, "0");
-      }).join("");
-    });
-  }
-
-  function solapiAuthHeader() {
-    var date = new Date().toISOString();
-    var salt = randomSalt();
-    return hmacSha256Hex(cfg.apiSecret, date + salt).then(function (signature) {
-      return "HMAC-SHA256 apiKey=" + cfg.apiKey + ", date=" + date + ", salt=" + salt + ", signature=" + signature;
-    });
-  }
-
   function scheduleAlimtalk(time, opts) {
     opts = opts || {};
     var b = booking(time);
     if (!b || !b.name) return Promise.reject(new Error("예약 정보가 없습니다."));
     if (!cfgReady()) {
-      toast("솔라피 API 키·시크릿이 없습니다. 설정에서 저장해 주세요.");
-      return Promise.reject(new Error("SOLAPI_NOT_CONFIGURED"));
+      toast("알림톡 템플릿/채널 설정이 없습니다.");
+      return Promise.reject(new Error("ALIMTALK_NOT_CONFIGURED"));
     }
 
     var when = opts.immediate ? new Date() : notifyAt(time);
@@ -2336,41 +2284,29 @@
     }
 
     var payload = {
-      message: {
-        to: b.phone,
-        from: cfg.from || undefined,
-        kakaoOptions: {
-          pfId: cfg.pfId,
-          templateId: cfg.templateId,
-          variables: {
-            "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
-            "#{시간}": time + " · 5분 전에 안전 ZONE 에서 만나요."
-          }
-        }
-      },
-      scheduledDate: toIsoKst(when)
+      action: "eventScheduleAlimtalkSend",
+      to: b.phone,
+      pfId: cfg.pfId,
+      templateId: cfg.templateId,
+      immediate: !!opts.immediate,
+      scheduledDate: opts.immediate ? "" : toIsoKst(when),
+      variables: {
+        "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
+        "#{시간}": time + " · 5분 전에 안전 ZONE 에서 만나요."
+      }
     };
-    if (!cfg.from) delete payload.message.from;
 
-    return solapiAuthHeader().then(function (auth) {
-      return fetch("https://api.solapi.com/messages/v4/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: auth
-        },
-        body: JSON.stringify(payload)
-      });
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok) {
-          var msg = (data && (data.errorMessage || data.message)) || ("HTTP " + res.status);
-          throw new Error(msg);
+    return gasRequest(payload, true).then(function (data) {
+      if (!data || data.ok === false) {
+        var msg =
+          (data && (data.message || data.errorMessage || data.error)) ||
+          "알림톡 발송 실패";
+        if (/unknown action/i.test(String(msg))) {
+          msg = "Apps Script를 다시 배포해 주세요 (eventScheduleAlimtalkSend)";
         }
-        return data;
-      });
-    }).then(function (data) {
-      var groupId = (data && (data.groupId || (data.groupInfo && data.groupInfo.groupId))) || "";
+        throw new Error(msg);
+      }
+      var groupId = (data && data.groupId) || "";
       state.bookings[time].alimStatus = opts.immediate ? "sent" : "scheduled";
       state.bookings[time].alimAt = toIsoKst(when).replace("T", " ").replace("+09:00", "");
       state.bookings[time].alimGroupId = groupId;
