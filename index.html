@@ -336,6 +336,14 @@
     padding: 0 4px;
     border-radius: 8px;
   }
+  .slot .time .seat-n {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--mute);
+    margin-top: 1px;
+  }
   .slot.has-guest .time {
     cursor: grab;
     touch-action: none;
@@ -974,6 +982,11 @@
           <input id="c-interval" type="number" min="5" max="60" step="5" value="15">
           <p class="hint">예: 15분이면 10:00, 10:15, 10:30… 칸이 만들어집니다.</p>
         </div>
+        <div class="field">
+          <label for="c-capacity">시간당 인원</label>
+          <input id="c-capacity" type="number" min="1" max="20" step="1" value="1">
+          <p class="hint">같은 시간에 예약 가능한 인원입니다. 3이면 10:00 칸이 3줄로 생깁니다.</p>
+        </div>
       </div>
 
       <div class="cfg-section">
@@ -1159,12 +1172,103 @@
     return slotsFromCfg(cfg);
   }
 
+  function slotCapacityFrom(source) {
+    var n = parseInt((source || cfg || {}).slotCapacity, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 20) n = 20;
+    return n;
+  }
+
+  function slotCapacity() {
+    return slotCapacityFrom(cfg);
+  }
+
+  function slotId(time, index) {
+    return String(time).slice(0, 5) + "#" + (parseInt(index, 10) || 0);
+  }
+
+  function parseSlotKey(key) {
+    var s = String(key || "");
+    var m = s.match(/^(\d{2}:\d{2})(?:#(\d+))?$/);
+    if (!m) return null;
+    return {
+      time: m[1],
+      index: m[2] != null ? parseInt(m[2], 10) : 0,
+      legacy: m[2] == null
+    };
+  }
+
+  function slotBaseTime(id) {
+    var p = parseSlotKey(id);
+    return p ? p.time : String(id || "").slice(0, 5);
+  }
+
+  function slotSeatIndex(id) {
+    var p = parseSlotKey(id);
+    return p ? p.index : 0;
+  }
+
+  function slotLabel(id) {
+    var p = parseSlotKey(id);
+    if (!p) return String(id || "");
+    if (slotCapacity() <= 1) return p.time;
+    return p.time + " · " + (p.index + 1) + "번";
+  }
+
+  function isGuestBooking(b) {
+    return !!(
+      b &&
+      typeof b === "object" &&
+      !Array.isArray(b) &&
+      (b.name || b.phone || b.note || b.alimStatus || b.alimGroupId)
+    );
+  }
+
+  function normalizeBookingsMap(bookings) {
+    var src = bookings || {};
+    var out = {};
+    Object.keys(src).forEach(function (key) {
+      var val = src[key];
+      var p = parseSlotKey(key);
+      if (Array.isArray(val)) {
+        var base = p ? p.time : String(key).slice(0, 5);
+        val.forEach(function (g, i) {
+          if (!isGuestBooking(g)) return;
+          var id = slotId(base, i);
+          if (!out[id]) out[id] = g;
+        });
+        return;
+      }
+      if (!isGuestBooking(val)) return;
+      if (!p) {
+        out[key] = val;
+        return;
+      }
+      var id2 = slotId(p.time, p.index);
+      if (!out[id2]) out[id2] = val;
+    });
+    return out;
+  }
+
+  function boardSeats(source) {
+    source = source || cfg;
+    var cap = slotCapacityFrom(source);
+    var list = [];
+    slotsFromCfg(source).forEach(function (t) {
+      for (var i = 0; i < cap; i++) {
+        list.push({ id: slotId(t, i), time: t, index: i });
+      }
+    });
+    return list;
+  }
+
   function loadState() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return { bookings: {} };
       var parsed = JSON.parse(raw);
-      return parsed && parsed.bookings ? parsed : { bookings: {} };
+      if (!(parsed && parsed.bookings)) return { bookings: {} };
+      return { bookings: normalizeBookingsMap(parsed.bookings) };
     } catch (e) {
       return { bookings: {} };
     }
@@ -1172,7 +1276,7 @@
 
   function cloneBookings(bookings) {
     try {
-      return JSON.parse(JSON.stringify(bookings || {}));
+      return normalizeBookingsMap(JSON.parse(JSON.stringify(bookings || {})));
     } catch (e) {
       return {};
     }
@@ -1180,7 +1284,7 @@
 
   function bookingCount(bookings) {
     var n = 0;
-    var map = bookings || {};
+    var map = normalizeBookingsMap(bookings || {});
     Object.keys(map).forEach(function (t) {
       if (map[t] && map[t].name) n++;
     });
@@ -1211,6 +1315,7 @@
       startTime: cfg.startTime || "10:00",
       endTime: cfg.endTime || "16:45",
       intervalMin: parseInt(cfg.intervalMin, 10) || 15,
+      slotCapacity: slotCapacity(),
       breaks: normalizeBreaks(cfg.breaks),
       updatedAt: new Date().toISOString()
     };
@@ -1239,6 +1344,7 @@
     if (day.startTime) cfg.startTime = day.startTime;
     if (day.endTime) cfg.endTime = day.endTime;
     if (day.intervalMin) cfg.intervalMin = parseInt(day.intervalMin, 10) || cfg.intervalMin;
+    if (day.slotCapacity != null) cfg.slotCapacity = slotCapacityFrom({ slotCapacity: day.slotCapacity });
     if (day.breaks) cfg.breaks = normalizeBreaks(day.breaks);
   }
 
@@ -1371,6 +1477,7 @@
 
   function saveState(opts) {
     opts = opts || {};
+    state.bookings = normalizeBookingsMap(state.bookings || {});
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     persistCurrentDay(eventDateStr());
     if (!opts.skipSync && !syncSkipPush) queueSheetPush();
@@ -1590,6 +1697,7 @@
       var merged = Object.assign(defaultCfg(), parsed);
       merged.breaks = normalizeBreaks(merged.breaks);
       merged.intervalMin = parseInt(merged.intervalMin, 10) || 15;
+      merged.slotCapacity = slotCapacityFrom(merged);
       merged.templateId = defaultCfg().templateId;
       merged.pfId = defaultCfg().pfId;
       return merged;
@@ -1610,6 +1718,7 @@
       startTime: "10:00",
       endTime: "16:45",
       intervalMin: 15,
+      slotCapacity: 1,
       breaks: []
     };
   }
@@ -1627,14 +1736,16 @@
       startTime: cfg.startTime || "10:00",
       endTime: cfg.endTime || "16:45",
       intervalMin: parseInt(cfg.intervalMin, 10) || 15,
+      slotCapacity: slotCapacity(),
       breaks: normalizeBreaks(cfg.breaks)
     };
   }
 
   function hasLocalBookings() {
-    var keys = Object.keys(state.bookings || {});
+    var map = normalizeBookingsMap(state.bookings || {});
+    var keys = Object.keys(map);
     for (var i = 0; i < keys.length; i++) {
-      var b = state.bookings[keys[i]];
+      var b = map[keys[i]];
       if (b && (b.name || b.phone || b.note)) return true;
     }
     return false;
@@ -1690,13 +1801,21 @@
   function daySnapshotFromRemoteDay(day, date) {
     day = day || {};
     var c = day.cfg || {};
+    var rawCap =
+      c.slotCapacity != null
+        ? c.slotCapacity
+        : day.slotCapacity != null
+          ? day.slotCapacity
+          : null;
     return {
       bookings: cloneBookings(day.bookings || {}),
-      place: c.place || PLACE_DEFAULT,
-      startTime: c.startTime || "10:00",
-      endTime: c.endTime || "16:45",
-      intervalMin: parseInt(c.intervalMin, 10) || 15,
-      breaks: normalizeBreaks(c.breaks),
+      place: c.place || day.place || PLACE_DEFAULT,
+      startTime: c.startTime || day.startTime || "10:00",
+      endTime: c.endTime || day.endTime || "16:45",
+      intervalMin: parseInt(c.intervalMin != null ? c.intervalMin : day.intervalMin, 10) || 15,
+      // 원격에 인원 설정이 없으면 null → 로컬 인원을 덮어쓰지 않음
+      slotCapacity: rawCap != null ? slotCapacityFrom({ slotCapacity: rawCap }) : null,
+      breaks: normalizeBreaks(c.breaks || day.breaks),
       updatedAt: new Date().toISOString()
     };
   }
@@ -1708,6 +1827,9 @@
     Object.keys(days).forEach(function (d) {
       if (!d || d === "undated") return;
       var snap = daySnapshotFromRemoteDay(days[d], d);
+      if (snap.slotCapacity == null && arch[d] && arch[d].slotCapacity != null) {
+        snap.slotCapacity = slotCapacityFrom({ slotCapacity: arch[d].slotCapacity });
+      }
       if (bookingCount(snap.bookings) === 0) {
         if (arch[d]) {
           delete arch[d];
@@ -1721,6 +1843,27 @@
     if (changed) saveArchive(arch);
   }
 
+  function applyRemoteCfgFields(remoteCfg, opts) {
+    opts = opts || {};
+    if (!remoteCfg || typeof remoteCfg !== "object") return;
+    var next = {
+      eventDate: remoteCfg.eventDate || cfg.eventDate,
+      place: remoteCfg.place || cfg.place,
+      startTime: remoteCfg.startTime || cfg.startTime,
+      endTime: remoteCfg.endTime || cfg.endTime,
+      intervalMin: parseInt(remoteCfg.intervalMin, 10) || cfg.intervalMin,
+      breaks: normalizeBreaks(
+        remoteCfg.breaks != null ? remoteCfg.breaks : cfg.breaks
+      )
+    };
+    if (remoteCfg.slotCapacity != null) {
+      next.slotCapacity = slotCapacityFrom({ slotCapacity: remoteCfg.slotCapacity });
+    } else if (opts.keepCapacity !== false) {
+      next.slotCapacity = slotCapacity();
+    }
+    cfg = Object.assign(defaultCfg(), cfg, next);
+  }
+
   function applyRemoteState(remoteState, revision, opts) {
     opts = opts || {};
     syncSkipPush = true;
@@ -1732,14 +1875,37 @@
         mergeRemoteDaysIntoArchive(remoteState.days);
         var want = eventDateStr();
         if (remoteState.days[want]) {
-          applyDaySnapshot(daySnapshotFromRemoteDay(remoteState.days[want], want));
+          var snapWant = daySnapshotFromRemoteDay(remoteState.days[want], want);
+          if (
+            snapWant.slotCapacity == null &&
+            remoteState.cfg &&
+            remoteState.cfg.slotCapacity != null
+          ) {
+            snapWant.slotCapacity = slotCapacityFrom({
+              slotCapacity: remoteState.cfg.slotCapacity
+            });
+          }
+          applyDaySnapshot(snapWant);
           cfg.eventDate = want;
         } else if (opts.replace && remoteState.activeDate && remoteState.days[remoteState.activeDate]) {
           var ad = remoteState.activeDate;
           if (ad && ad !== "undated") {
-            applyDaySnapshot(daySnapshotFromRemoteDay(remoteState.days[ad], ad));
+            var snapAd = daySnapshotFromRemoteDay(remoteState.days[ad], ad);
+            if (
+              snapAd.slotCapacity == null &&
+              remoteState.cfg &&
+              remoteState.cfg.slotCapacity != null
+            ) {
+              snapAd.slotCapacity = slotCapacityFrom({
+                slotCapacity: remoteState.cfg.slotCapacity
+              });
+            }
+            applyDaySnapshot(snapAd);
             cfg.eventDate = ad;
           }
+        } else if (remoteState.cfg && typeof remoteState.cfg === "object") {
+          // 다른 날짜만 갱신된 경우에도 공통 cfg(시간당 인원 등)는 반영
+          applyRemoteCfgFields(remoteState.cfg, { keepCapacity: true });
         }
         // 다른 날짜만 갱신된 경우: 보관함만 반영하고 현재 화면 유지
       } else {
@@ -1749,33 +1915,25 @@
           if (remoteDate === eventDateStr() || opts.replace) {
             state = { bookings: cloneBookings(remoteState.bookings) };
             if (remoteState.cfg && typeof remoteState.cfg === "object") {
-              cfg = Object.assign(defaultCfg(), cfg, {
-                eventDate: remoteState.cfg.eventDate || cfg.eventDate,
-                place: remoteState.cfg.place || cfg.place,
-                startTime: remoteState.cfg.startTime || cfg.startTime,
-                endTime: remoteState.cfg.endTime || cfg.endTime,
-                intervalMin: parseInt(remoteState.cfg.intervalMin, 10) || cfg.intervalMin,
-                breaks: normalizeBreaks(remoteState.cfg.breaks)
-              });
+              applyRemoteCfgFields(remoteState.cfg, { keepCapacity: true });
             }
           } else if (remoteDate && remoteDate !== "undated") {
             var arch2 = loadArchive();
-            arch2[remoteDate] = daySnapshotFromRemoteDay(
+            var snap2 = daySnapshotFromRemoteDay(
               { bookings: remoteState.bookings, cfg: remoteState.cfg },
               remoteDate
             );
+            if (snap2.slotCapacity == null && arch2[remoteDate] && arch2[remoteDate].slotCapacity != null) {
+              snap2.slotCapacity = slotCapacityFrom({
+                slotCapacity: arch2[remoteDate].slotCapacity
+              });
+            }
+            arch2[remoteDate] = snap2;
             if (bookingCount(arch2[remoteDate].bookings) === 0) delete arch2[remoteDate];
             saveArchive(arch2);
           }
         } else if (remoteState.cfg && typeof remoteState.cfg === "object") {
-          cfg = Object.assign(defaultCfg(), cfg, {
-            eventDate: remoteState.cfg.eventDate || cfg.eventDate,
-            place: remoteState.cfg.place || cfg.place,
-            startTime: remoteState.cfg.startTime || cfg.startTime,
-            endTime: remoteState.cfg.endTime || cfg.endTime,
-            intervalMin: parseInt(remoteState.cfg.intervalMin, 10) || cfg.intervalMin,
-            breaks: normalizeBreaks(remoteState.cfg.breaks)
-          });
+          applyRemoteCfgFields(remoteState.cfg, { keepCapacity: true });
         }
       }
 
@@ -1891,7 +2049,9 @@
         if (syncLocalDirty || syncPushQueued) return res;
         var remoteRev = parseInt(res.revision, 10) || 0;
         if (!res.empty && remoteRev > syncRevision) {
-          showSyncNotice(res);
+          // 로컬 미저장 변경이 없으면 충돌 없이 바로 반영 (인원 수·예약 포함)
+          applyRemoteState(res.state || { bookings: {} }, remoteRev, { replace: false });
+          hideSyncNotice();
         }
         return res;
       })
@@ -1923,7 +2083,7 @@
       usedQueue = true;
     } else {
       statePayload = {
-        bookings: state.bookings || {},
+        bookings: normalizeBookingsMap(state.bookings || {}),
         cfg: syncableCfg()
       };
     }
@@ -2254,13 +2414,15 @@
   function updateSlotPreview() {
     var draft = readScheduleDraft();
     var list = slotsFromCfg(draft);
+    var cap = slotCapacityFrom(draft);
     var breaks = normalizeBreaks(draft.breaks);
     var el = document.getElementById("slot-preview");
     if (!el) return;
     var breakTxt = breaks.length
       ? " · 쉬는 시간 " + breaks.map(function (b) { return b.start + "–" + b.end; }).join(", ")
       : "";
-    el.innerHTML = "미리보기: <b>" + list.length + "칸</b> (" +
+    var seatTxt = cap > 1 ? (" × " + cap + "명 = <b>" + (list.length * cap) + "칸</b>") : (" · <b>" + list.length + "칸</b>");
+    el.innerHTML = "미리보기: " + list.length + "시간" + seatTxt + " (" +
       (draft.startTime || "-") + "–" + (draft.endTime || "-") + " · " + (draft.intervalMin || "-") + "분)" +
       escapeHtml(breakTxt);
   }
@@ -2270,6 +2432,7 @@
       startTime: document.getElementById("c-start").value || "10:00",
       endTime: document.getElementById("c-end").value || "16:45",
       intervalMin: parseInt(document.getElementById("c-interval").value, 10) || 15,
+      slotCapacity: parseInt(document.getElementById("c-capacity").value, 10) || 1,
       breaks: normalizeBreaks(draftBreaks)
     };
   }
@@ -2469,7 +2632,7 @@
     if (shouldCancelAlim) {
       cancelScheduledAlimtalk(prevGroupId).then(function (res) {
         if (res && res.ok === false) {
-          toast(time + " 상태 변경 · 알림톡 예약 취소 실패(솔라피 확인)");
+          toast(slotLabel(time) + " 상태 변경 · 알림톡 예약 취소 실패(솔라피 확인)");
         }
       });
     }
@@ -2510,12 +2673,12 @@
     opts = opts || {};
     var b = booking(time);
     if (!b || (!b.name && !b.phone && !b.note)) {
-      toast(time + " 이미 비어 있습니다");
+      toast(slotLabel(time) + " 이미 비어 있습니다");
       return false;
     }
     if (opts.confirm !== false) {
       var label = (b.name || "예약") + (b.phone ? " · " + formatPhone(b.phone) : "");
-      if (!confirm(time + " · " + label + "\n이름·연락처를 삭제할까요?")) return false;
+      if (!confirm(slotLabel(time) + " · " + label + "\n이름·연락처를 삭제할까요?")) return false;
     }
     var groupId = b.alimGroupId || "";
     var wasScheduled = b.alimStatus === "scheduled" && !!groupId;
@@ -2527,13 +2690,13 @@
     if (wasScheduled) {
       cancelScheduledAlimtalk(groupId).then(function (res) {
         if (res && res.ok === false) {
-          toast(time + " 삭제됨 · 알림톡 예약 취소 실패(솔라피 확인)");
+          toast(slotLabel(time) + " 삭제됨 · 알림톡 예약 취소 실패(솔라피 확인)");
         } else if (opts.toast !== false) {
-          toast(time + " 삭제 · 알림톡 예약 취소 · 동기화 중");
+          toast(slotLabel(time) + " 삭제 · 알림톡 예약 취소 · 동기화 중");
         }
       });
     } else if (opts.toast !== false) {
-      toast(time + " 삭제 · 동기화 중");
+      toast(slotLabel(time) + " 삭제 · 동기화 중");
     }
     return true;
   }
@@ -2554,7 +2717,7 @@
     }
     if (
       !confirm(
-        time + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)"
+        slotLabel(time) + " · " + b.name + "님에게 지금 알림톡을 보낼까요?\n(리얼무브먼트 인천점 채널)"
       )
     ) {
       return;
@@ -2666,7 +2829,7 @@
       cancelP
         .then(function (res) {
           if (res && res.ok === false && !res.soft && !res.skipped) {
-            toast(item.time + " 이동됨 · 알림톡 재예약 전 취소 실패");
+            toast(slotLabel(item.time) + " 이동됨 · 알림톡 재예약 전 취소 실패");
             return;
           }
           var b = booking(item.time);
@@ -2686,9 +2849,9 @@
     var toB = booking(toTime);
     if (!fromB || !fromB.name) return;
     var msg =
-      fromTime + "  " + bookingLabel(fromB) + "\n" +
+      slotLabel(fromTime) + "  " + bookingLabel(fromB) + "\n" +
       "↔\n" +
-      toTime + "  " + bookingLabel(toB) + "\n\n" +
+      slotLabel(toTime) + "  " + bookingLabel(toB) + "\n\n" +
       "해당 시간대와 서로 변경할까요?";
     if (!confirm(msg)) return;
     swapBookings(fromTime, toTime);
@@ -2852,13 +3015,13 @@
         if (gid) {
           cancelScheduledAlimtalk(gid).then(function (res) {
             if (res && res.ok === false) {
-              toast(time + " 비움 · 알림톡 예약 취소 실패(솔라피 확인)");
+              toast(slotLabel(time) + " 비움 · 알림톡 예약 취소 실패(솔라피 확인)");
             } else if (opts.toast) {
-              toast(time + " 비움 · 알림톡 예약 취소");
+              toast(slotLabel(time) + " 비움 · 알림톡 예약 취소");
             }
           });
         } else if (opts.toast) {
-          toast(time + " 비움");
+          toast(slotLabel(time) + " 비움");
         }
       }
       return;
@@ -2912,12 +3075,12 @@
       timeEl.title = "눌러 끌어서 시간 이동";
       bindGuestDrag(timeEl, row, time);
     }
-    if (opts.toast && hasGuest) toast(time + " 예약");
+    if (opts.toast && hasGuest) toast(slotLabel(time) + " 예약");
 
     if (clearAlimForPhone) {
       cancelScheduledAlimtalk(prevScheduledGid).then(function (res) {
         if (res && res.ok === false) {
-          toast(time + " 번호 변경 · 옛 알림톡 취소 실패(솔라피 확인)");
+          toast(slotLabel(time) + " 번호 변경 · 옛 알림톡 취소 실패(솔라피 확인)");
           return;
         }
         autoScheduleAlimtalkForSlot(time);
@@ -2974,7 +3137,7 @@
 
   function slotDate(time) {
     // local Asia/Seoul assumed on device
-    return new Date(eventDateStr() + "T" + time + ":00");
+    return new Date(eventDateStr() + "T" + slotBaseTime(time) + ":00");
   }
 
   function notifyAt(time) {
@@ -3011,10 +3174,10 @@
   }
 
   function renderStats() {
-    var all = slots();
+    var seats = boardSeats();
     var booked = 0, scheduled = 0, open = 0;
-    all.forEach(function (t) {
-      var b = booking(t);
+    seats.forEach(function (seat) {
+      var b = booking(seat.id);
       if (!b || !b.name) { open++; return; }
       booked++;
       if (b.alimStatus === "scheduled" || b.alimStatus === "sent") scheduled++;
@@ -3039,7 +3202,10 @@
       };
     }
     board.innerHTML = "";
-    slots().forEach(function (t) {
+    var cap = slotCapacity();
+    boardSeats().forEach(function (seat) {
+      var t = seat.id;
+      var base = seat.time;
       var b = booking(t);
       var st = statusLabel(b);
       if (filter === "open" && b && b.name) return;
@@ -3049,22 +3215,29 @@
       var row = document.createElement("div");
       row.className = "slot";
       row.setAttribute("data-time", t);
+      row.setAttribute("data-base-time", base);
+      row.setAttribute("data-seat", String(seat.index));
       if (b && b.name) row.classList.add("has-guest");
       if (b && String(b.note || "").trim()) row.classList.add("has-memo");
       if (isSoon(t)) row.classList.add("soon");
       if (isPast(t)) row.classList.add("past");
 
+      var timeHtml =
+        escapeHtml(base) +
+        (cap > 1 ? '<span class="seat-n">' + (seat.index + 1) + "/" + cap + "</span>" : "");
+      var ariaTime = slotLabel(t);
+
       var main = document.createElement("div");
       main.className = "slot-main";
       main.innerHTML =
-        '<div class="time" title="' + (b && b.name ? "눌러 끌어서 시간 이동" : "") + '">' + t + "</div>" +
+        '<div class="time" title="' + (b && b.name ? "눌러 끌어서 시간 이동" : "") + '">' + timeHtml + "</div>" +
         '<div class="slot-fields">' +
           '<div class="inline-phone">' +
-            '<input data-field="phone1" type="tel" inputmode="numeric" maxlength="3" value="010" readonly tabindex="-1" aria-label="' + t + ' 전화 앞자리">' +
-            '<input data-field="phone2" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p2 || "") + '" placeholder="1234" aria-label="' + t + ' 전화 가운데">' +
-            '<input data-field="phone3" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p3 || "") + '" placeholder="5678" aria-label="' + t + ' 전화 뒷자리">' +
+            '<input data-field="phone1" type="tel" inputmode="numeric" maxlength="3" value="010" readonly tabindex="-1" aria-label="' + ariaTime + ' 전화 앞자리">' +
+            '<input data-field="phone2" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p2 || "") + '" placeholder="1234" aria-label="' + ariaTime + ' 전화 가운데">' +
+            '<input data-field="phone3" type="tel" inputmode="numeric" maxlength="4" value="' + escapeHtml(parts.p3 || "") + '" placeholder="5678" aria-label="' + ariaTime + ' 전화 뒷자리">' +
           "</div>" +
-          '<input class="inline-name" data-field="name" type="text" value="' + escapeHtml((b && b.name) || "") + '" placeholder="이름" aria-label="' + t + ' 이름">' +
+          '<input class="inline-name" data-field="name" type="text" value="' + escapeHtml((b && b.name) || "") + '" placeholder="이름" aria-label="' + ariaTime + ' 이름">' +
         "</div>";
 
       var timeEl = main.querySelector(".time");
@@ -3083,7 +3256,7 @@
       memoInput.type = "text";
       memoInput.placeholder = "메모";
       memoInput.value = noteVal;
-      memoInput.setAttribute("aria-label", t + " 메모");
+      memoInput.setAttribute("aria-label", ariaTime + " 메모");
       memoInput.addEventListener("input", function () {
         memoInput.classList.toggle("has-value", !!memoInput.value.trim());
       });
@@ -3100,7 +3273,7 @@
       if (b && b.name) {
         var statusEl = document.createElement("select");
         statusEl.className = "badge-select " + st.key;
-        statusEl.setAttribute("aria-label", t + " 상태");
+        statusEl.setAttribute("aria-label", ariaTime + " 상태");
         statusEl.innerHTML = statusOptionsHtml();
         statusEl.value = normalizeStatus(b.status);
         bindStatusSelect(statusEl, t);
@@ -3166,8 +3339,8 @@
   function openEdit(time) {
     currentTime = time;
     var b = booking(time) || {};
-    document.getElementById("drawer-title").textContent = time + " 예약";
-    document.getElementById("f-time").value = time;
+    document.getElementById("drawer-title").textContent = slotLabel(time) + " 예약";
+    document.getElementById("f-time").value = slotLabel(time);
     setPhoneParts(b.phone || "010");
     document.getElementById("f-name").value = b.name || "";
     document.getElementById("f-status").value = normalizeStatus(b.status || "booked");
@@ -3209,6 +3382,7 @@
     document.getElementById("c-start").value = cfg.startTime || "10:00";
     document.getElementById("c-end").value = cfg.endTime || "16:45";
     document.getElementById("c-interval").value = String(cfg.intervalMin || 15);
+    document.getElementById("c-capacity").value = String(slotCapacity());
     var readyHint = document.getElementById("solapi-ready-hint");
     if (readyHint) {
       readyHint.textContent = cfgReady()
@@ -3222,12 +3396,26 @@
     renderSavedDates();
   }
 
+  function countOverflowBookings(capacity) {
+    var n = 0;
+    var map = normalizeBookingsMap(state.bookings || {});
+    Object.keys(map).forEach(function (key) {
+      var p = parseSlotKey(key);
+      if (!p || !map[key] || !map[key].name) return;
+      if (p.index >= capacity) n++;
+    });
+    return n;
+  }
+
   function readCfgForm() {
     var start = document.getElementById("c-start").value || "10:00";
     var end = document.getElementById("c-end").value || "16:45";
     var interval = parseInt(document.getElementById("c-interval").value, 10) || 15;
     if (interval < 5) interval = 5;
     if (interval > 60) interval = 60;
+    var capacity = parseInt(document.getElementById("c-capacity").value, 10) || 1;
+    if (capacity < 1) capacity = 1;
+    if (capacity > 20) capacity = 20;
     var sMin = timeToMinutes(start);
     var eMin = timeToMinutes(end);
     if (isNaN(sMin) || isNaN(eMin) || eMin < sMin) {
@@ -3238,6 +3426,18 @@
     if (!place) {
       toast("장소를 입력해 주세요.");
       return false;
+    }
+    var overflow = countOverflowBookings(capacity);
+    if (overflow > 0) {
+      if (
+        !confirm(
+          "시간당 인원을 " + capacity + "명으로 줄이면\n" +
+          "화면에서 가려지는 예약이 " + overflow + "건 있습니다.\n" +
+          "데이터는 보관되며, 인원을 다시 올리면 보입니다.\n계속할까요?"
+        )
+      ) {
+        return false;
+      }
     }
     var newDate = document.getElementById("c-eventdate").value || EVENT_DEFAULT_DATE;
     var oldDate = eventDateStr();
@@ -3252,6 +3452,7 @@
     cfg.startTime = start;
     cfg.endTime = end;
     cfg.intervalMin = interval;
+    cfg.slotCapacity = capacity;
     cfg.breaks = breaks;
     return true;
   }
@@ -3266,7 +3467,11 @@
 
   function saveBooking(opts) {
     opts = opts || {};
-    var time = currentTime || document.getElementById("f-time").value;
+    var time = currentTime;
+    if (!time) {
+      toast("예약 칸을 다시 선택해 주세요.");
+      return null;
+    }
     var name = document.getElementById("f-name").value.trim();
     var phone = readPhoneParts();
     var status = document.getElementById("f-status").value;
@@ -3304,7 +3509,7 @@
     var cancelP = shouldCancelAlim
       ? cancelScheduledAlimtalk(prevGid).then(function (res) {
           if (res && res.ok === false) {
-            toast(time + " 저장됨 · 알림톡 예약 취소 실패(솔라피 확인)");
+            toast(slotLabel(time) + " 저장됨 · 알림톡 예약 취소 실패(솔라피 확인)");
           }
           return res;
         })
@@ -3380,7 +3585,7 @@
         variables: {
           "#{날짜}": String(b.name || "").replace(/\s*님\s*$/, "") + "님",
           "#{시간}":
-            time +
+            slotBaseTime(time) +
             "\n· 패시브 스트레칭 10분 전!\n· 5분 전까지, 안전 ZONE 에서 만나요.\nㅤ\n활기찬 오후, 그리고"
         }
       };
@@ -3403,7 +3608,7 @@
         state.bookings[time].alimError = "";
         saveState();
         renderBoard();
-        toast(opts.immediate ? (time + " 알림톡 즉시 발송") : (time + " 알림톡 " + state.bookings[time].alimAt + " 예약"));
+        toast(opts.immediate ? (slotLabel(time) + " 알림톡 즉시 발송") : (slotLabel(time) + " 알림톡 " + state.bookings[time].alimAt + " 예약"));
         return data;
       });
     }
@@ -3435,11 +3640,13 @@
   }
 
   function exportCsv() {
-    var rows = [["시간", "이름", "전화번호", "상태", "알림상태", "알림시각", "메모"]];
-    slots().forEach(function (t) {
-      var b = booking(t);
+    var rows = [["시간", "좌석", "이름", "전화번호", "상태", "알림상태", "알림시각", "메모"]];
+    var cap = slotCapacity();
+    boardSeats().forEach(function (seat) {
+      var b = booking(seat.id);
       rows.push([
-        t,
+        seat.time,
+        cap > 1 ? String(seat.index + 1) : "",
         (b && b.name) || "",
         (b && formatPhone(b.phone)) || "",
         (b && b.status) || "",
@@ -3531,13 +3738,14 @@
     updateMeta();
     renderBoard();
     renderSavedDates();
-    var msg = "설정 저장 · " + slots().length + "칸";
-    if (eventDateStr() !== prevDate) msg = formatMetaDate(eventDateStr()) + "로 전환 · " + slots().length + "칸";
+    var seatN = boardSeats().length;
+    var msg = "설정 저장 · " + seatN + "칸" + (slotCapacity() > 1 ? " (시간당 " + slotCapacity() + "명)" : "");
+    if (eventDateStr() !== prevDate) msg = formatMetaDate(eventDateStr()) + "로 전환 · " + seatN + "칸";
     toast(msg);
     closeDrawer();
   });
   document.getElementById("btn-cfg-reset").addEventListener("click", function () {
-    if (!confirm("운영 시간·쉬는 시간을 기본값(10:00–16:45 · 15분)으로 되돌릴까요?")) return;
+    if (!confirm("운영 시간·인원·쉬는 시간을 기본값(10:00–16:45 · 15분 · 1명)으로 되돌릴까요?")) return;
     var keep = {
       apiKey: cfg.apiKey,
       apiSecret: cfg.apiSecret,
@@ -3561,7 +3769,7 @@
     draftBreaks = [];
     renderBreakList();
   });
-  ["c-start", "c-end", "c-interval"].forEach(function (id) {
+  ["c-start", "c-end", "c-interval", "c-capacity"].forEach(function (id) {
     document.getElementById(id).addEventListener("input", updateSlotPreview);
     document.getElementById(id).addEventListener("change", updateSlotPreview);
   });
